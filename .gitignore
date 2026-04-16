@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.exe
+*.pdf
+.DS_Store

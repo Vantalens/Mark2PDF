@@ -1,0 +1,62 @@
+{
+  "name": "mark2pdf",
+  "version": "1.0.0",
+  "description": "Convert Markdown files to high-quality PDF with math, symbols, and robust font rendering.",
+  "type": "module",
+  "main": "src/electron-main.js",
+  "bin": {
+    "mark2pdf": "src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "web": "node src/server.js",
+    "convert": "node src/cli.js",
+    "desktop": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "keywords": [
+    "markdown",
+    "pdf",
+    "katex",
+    "converter"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "highlight.js": "^11.11.1",
+    "katex": "^0.16.25",
+    "markdown-it": "^14.1.0",
+    "markdown-it-anchor": "^9.2.0",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-task-lists": "^2.1.1",
+    "markdown-it-texmath": "^1.0.0",
+    "playwright": "^1.54.2"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.mark2pdf.app",
+    "productName": "Mark2PDF",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "src/electron-main.js"
+    },
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "forceCodeSigning": false,
+      "signAndEditExecutable": false
+    }
+  }
+}
