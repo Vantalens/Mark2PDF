@@ -10,7 +10,6 @@ import taskLists from "markdown-it-task-lists";
 import texmath from "markdown-it-texmath";
 import katex from "katex";
 import hljs from "highlight.js";
-import { chromium } from "playwright";
 
 const DEFAULT_PDF_OPTIONS = {
   format: "A4",
@@ -23,6 +22,14 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 
 let markdownEngine;
 let sharedCssPromise;
+let playwrightChromiumPromise;
+
+async function getPlaywrightChromium() {
+  if (!playwrightChromiumPromise) {
+    playwrightChromiumPromise = import("playwright").then((playwright) => playwright.chromium);
+  }
+  return playwrightChromiumPromise;
+}
 
 function buildMarkdownEngine() {
   const md = markdownIt({
@@ -213,6 +220,7 @@ async function renderPdfBufferWithElectron(html, pdfOptions) {
 
 async function renderPdfBufferWithPlaywright(html, pdfOptions) {
   try {
+    const chromium = await getPlaywrightChromium();
     const browser = await chromium.launch({ headless: true });
     try {
       const page = await browser.newPage({

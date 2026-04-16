@@ -5,12 +5,18 @@ import { pathToFileURL } from "node:url";
 
 import express from "express";
 
-import { renderMarkdownBody, renderMarkdownHtml, renderMarkdownToPdfBuffer } from "./renderer.js";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const publicDir = path.join(projectRoot, "public");
+let rendererModulePromise;
+
+async function getRendererModule() {
+  if (!rendererModulePromise) {
+    rendererModulePromise = import("./renderer.js");
+  }
+  return rendererModulePromise;
+}
 
 function getTitleFromName(name) {
   const safeName = String(name || "document");
@@ -50,6 +56,7 @@ function createApp() {
 
   app.post("/api/render-html", async (req, res) => {
     try {
+      const { renderMarkdownBody, renderMarkdownHtml } = await getRendererModule();
       const markdown = String(req.body?.markdown ?? "");
       const title = getTitleFromName(req.body?.filename);
       const baseHref = getBaseHrefFromSourcePath(req.body?.sourcePath);
@@ -70,6 +77,7 @@ function createApp() {
 
   app.post("/api/pdf", async (req, res) => {
     try {
+      const { renderMarkdownToPdfBuffer } = await getRendererModule();
       const markdown = String(req.body?.markdown ?? "");
       const title = getTitleFromName(req.body?.filename);
       const format = String(req.body?.format || "A4").toUpperCase();
@@ -110,12 +118,15 @@ function createApp() {
 }
 
 export async function startWebServer(port = Number(process.env.PORT || 3000)) {
+  const serverStartTime = Date.now();
   const app = createApp();
 
   return await new Promise((resolve, reject) => {
     const server = app.listen(port, () => {
+      const elapsed = Date.now() - serverStartTime;
       const address = server.address();
       const actualPort = typeof address === "object" && address ? address.port : port;
+      console.log(`[STARTUP] Web server listening: ${elapsed}ms`);
       resolve({ app, server, port: actualPort });
     });
 

@@ -1,3 +1,5 @@
+console.log("[STARTUP] app.js module load start");
+
 const markdownInput = document.getElementById("markdownInput");
 const fileInput = document.getElementById("fileInput");
 const dropZone = document.getElementById("dropZone");
@@ -14,6 +16,8 @@ const downloadPdfButton = document.getElementById("downloadPdfButton");
 const loadSampleButton = document.getElementById("loadSampleButton");
 const wordCountEl = document.getElementById("wordCount");
 const lineCountEl = document.getElementById("lineCount");
+
+console.log("[STARTUP] DOM elements queried");
 
 const sampleMarkdown = `# Mark2PDF 演示
 
@@ -100,6 +104,9 @@ function updatePdfDownloadState(enabled) {
 }
 
 async function renderPreview(markdown) {
+  const renderStart = Date.now();
+  console.log("[STARTUP] renderPreview start");
+  
   const normalizedMarkdown = String(markdown ?? "");
   if (normalizedMarkdown === lastRenderedMarkdown) {
     return;
@@ -154,6 +161,8 @@ async function renderPreview(markdown) {
   }
 
   lastRenderedMarkdown = normalizedMarkdown;
+  const elapsed = Date.now() - renderStart;
+  console.log(`[STARTUP] renderPreview complete: ${elapsed}ms`);
   setStatus("预览已更新");
 }
 
@@ -348,9 +357,26 @@ loadSampleButton.addEventListener("click", () => {
   });
 });
 
-handleMarkdownText(sampleMarkdown, "sample.md").catch((error) => {
-  setStatus(error.message, "error");
-});
+function bootstrapInitialSample() {
+  console.log("[STARTUP] bootstrapInitialSample start");
+  currentSourcePath = "";
+  currentFileName = "sample.md";
+  markdownInput.value = sampleMarkdown;
+  setFileMeta("sample.md");
+  updatePdfDownloadState(false);
+  setPdfMeta("尚未生成");
+  openPdfPreviewButton.textContent = "加载 PDF 预览";
+  revokePdfUrl();
+  pdfPreview.removeAttribute("src");
+  lastRenderedMarkdown = "";
+  updateWordCount();
+  setStatus("示例已加载 · 点击「刷新预览」查看");
+
+  // 不在启动时立即渲染，让 UI 先显示
+}
+
+console.log("[STARTUP] calling bootstrapInitialSample");
+bootstrapInitialSample();
 
 autoPreviewCheckbox.checked = false;
 openPdfPreviewButton.disabled = true;
