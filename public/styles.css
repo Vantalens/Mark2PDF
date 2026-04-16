@@ -340,17 +340,6 @@ input {
   overflow-y: auto;
 }
 
-.preview-markdown.edit-mode {
-  outline: 2px dashed var(--accent);
-  cursor: text;
-  background: #fafbfc;
-}
-
-.preview-markdown.edit-mode:focus {
-  outline: 2px solid var(--accent);
-  background: #ffffff;
-}
-
 .preview-markdown h1,
 .preview-markdown h2,
 .preview-markdown h3,

@@ -9,7 +9,6 @@ const openPdfPreviewButton = document.getElementById("openPdfPreviewButton");
 const pdfMeta = document.getElementById("pdfMeta");
 const autoPreviewCheckbox = document.getElementById("autoPreviewCheckbox");
 const refreshPreviewButton = document.getElementById("refreshPreviewButton");
-const editPreviewButton = document.getElementById("editPreviewButton");
 const generatePdfButton = document.getElementById("generatePdfButton");
 const downloadPdfButton = document.getElementById("downloadPdfButton");
 const loadSampleButton = document.getElementById("loadSampleButton");
@@ -47,8 +46,6 @@ let previewToken = 0;
 let previewController = null;
 let lastRenderedMarkdown = "";
 let autoPreviewEnabled = false;
-let previewEditMode = false;
-let previewOriginalContent = "";
 
 const PREVIEW_DEBOUNCE_MS = 700;
 const LARGE_DOC_THRESHOLD = 12000;
@@ -102,57 +99,6 @@ function updatePdfDownloadState(enabled) {
   }
 }
 
-function htmlToMarkdown(html) {
-  // 简单的 HTML 到 Markdown 转换
-  let markdown = html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<p[^>]*>/gi, "")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<div[^>]*>/gi, "")
-    .replace(/<strong[^>]*>|<b[^>]*>/gi, "**")
-    .replace(/<\/strong>|<\/b>/gi, "**")
-    .replace(/<em[^>]*>|<i[^>]*>/gi, "*")
-    .replace(/<\/em>|<\/i>/gi, "*")
-    .replace(/<h([1-6])[^>]*>(.*?)<\/h\1>/gi, (match, level, content) => {
-      return "#".repeat(parseInt(level)) + " " + content.trim() + "\n";
-    })
-    .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
-    .replace(/<ul[^>]*>|<\/ul>|<ol[^>]*>|<\/ol>/gi, "")
-    .replace(/<[^>]+>/g, "")
-    .trim();
-  
-  return markdown;
-}
-
-function togglePreviewEditMode() {
-  if (previewEditMode) {
-    // 退出编辑模式：将修改同步到编辑器
-    const editedContent = htmlPreview.innerHTML;
-    const markdown = htmlToMarkdown(editedContent);
-    
-    if (markdown.trim()) {
-      markdownInput.value = markdown;
-      schedulePreviewUpdate();
-      setStatus("预览编辑已保存，Markdown 已更新", "success");
-    }
-    
-    previewEditMode = false;
-    htmlPreview.classList.remove("edit-mode");
-    htmlPreview.contentEditable = "false";
-    editPreviewButton.textContent = "编辑";
-  } else {
-    // 进入编辑模式
-    previewEditMode = true;
-    previewOriginalContent = htmlPreview.innerHTML;
-    htmlPreview.classList.add("edit-mode");
-    htmlPreview.contentEditable = "true";
-    htmlPreview.focus();
-    editPreviewButton.textContent = "完成编辑";
-    setStatus("预览编辑模式已启用，点击'完成编辑'保存更改", "info");
-  }
-}
-
 async function renderPreview(markdown) {
   const normalizedMarkdown = String(markdown ?? "");
   if (normalizedMarkdown === lastRenderedMarkdown) {
@@ -189,14 +135,6 @@ async function renderPreview(markdown) {
   const data = await response.json();
   if (token !== previewToken) {
     return;
-  }
-
-  // 退出编辑模式，如果当前处于编辑模式
-  if (previewEditMode) {
-    previewEditMode = false;
-    htmlPreview.classList.remove("edit-mode");
-    htmlPreview.contentEditable = "false";
-    editPreviewButton.textContent = "编辑";
   }
 
   const previewStyleId = "preview-render-styles";
@@ -345,8 +283,6 @@ refreshPreviewButton.addEventListener("click", () => {
     }
   });
 });
-
-editPreviewButton.addEventListener("click", togglePreviewEditMode);
 
 autoPreviewCheckbox.addEventListener("change", () => {
   autoPreviewEnabled = autoPreviewCheckbox.checked;
