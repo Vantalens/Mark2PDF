@@ -6,20 +6,6 @@
 
 一个高质量的 **Markdown → PDF 转换工具**，专注于完美渲染中文文档、复杂公式和代码块。支持网页版和跨平台桌面应用。
 
-## English Version
-
-Mark2PDF is a high-quality **Markdown to PDF converter** focused on stable rendering for Chinese documents, complex math formulas, and code blocks.
-
-It supports both:
-- Web version (Node.js + browser)
-- Cross-platform desktop app (Electron)
-
-Core highlights:
-- Reliable Markdown rendering with KaTeX math support
-- Syntax highlighting for 130+ languages
-- Drag-and-drop upload and one-click PDF export
-- Optimized layout for Chinese/English mixed content
-
 ## 核心特性
 
 ### 完美的文档渲染
