@@ -18,9 +18,16 @@ function getTitleFromName(name) {
 }
 
 function getSafePdfFileName(title) {
+  // 只保留 ASCII 字母、数字、点、连字符、下划线
   return String(title || "document")
-    .replace(/[\\/:*?"<>|]+/g, "_")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/_{2,}/g, "_")
     .trim() || "document";
+}
+
+function extractPreviewCss(html) {
+  const match = String(html || "").match(/<style>([\s\S]*?)<\/style>/i);
+  return match ? match[1] : "";
 }
 
 function createApp() {
@@ -53,10 +60,11 @@ function createApp() {
         title,
         baseHref,
       });
+      const previewCss = extractPreviewCss(html);
 
-      res.json({ title, html, bodyHtml });
+      res.json({ title, html, bodyHtml, previewCss });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message, detail: error.stack });
     }
   });
 
@@ -83,10 +91,12 @@ function createApp() {
 
       const safeFileName = getSafePdfFileName(title);
       res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      // 使用 RFC 5987 编码防止特殊字符问题
       res.setHeader("Content-Disposition", `inline; filename="${safeFileName}.pdf"`);
       res.send(pdfBuffer);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message, detail: error.stack });
     }
   });
 

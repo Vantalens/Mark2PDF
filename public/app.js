@@ -7,14 +7,16 @@ const htmlPreview = document.getElementById("htmlPreview");
 const pdfPreview = document.getElementById("pdfPreview");
 const openPdfPreviewButton = document.getElementById("openPdfPreviewButton");
 const pdfMeta = document.getElementById("pdfMeta");
-const previewMeta = document.getElementById("previewMeta");
 const autoPreviewCheckbox = document.getElementById("autoPreviewCheckbox");
 const refreshPreviewButton = document.getElementById("refreshPreviewButton");
+const editPreviewButton = document.getElementById("editPreviewButton");
 const generatePdfButton = document.getElementById("generatePdfButton");
 const downloadPdfButton = document.getElementById("downloadPdfButton");
 const loadSampleButton = document.getElementById("loadSampleButton");
+const wordCountEl = document.getElementById("wordCount");
+const lineCountEl = document.getElementById("lineCount");
 
-const sampleMarkdown = `# Mark2PDF Web 演示
+const sampleMarkdown = `# Mark2PDF 演示
 
 这是中文、English 与特殊符号：∞ ≠ ≤ ≥ ± © ® ™ Ω → ← ✓ ✗。
 
@@ -30,13 +32,11 @@ $$
 - [x] 生成 PDF
 - [ ] 下载 PDF
 
-
-default code example
-
-
-def sum(a, b) {
+\`\`\`javascript
+function sum(a, b) {
   return a + b;
 }
+\`\`\`
 `;
 
 let currentFileName = "document.md";
@@ -47,6 +47,8 @@ let previewToken = 0;
 let previewController = null;
 let lastRenderedMarkdown = "";
 let autoPreviewEnabled = false;
+let previewEditMode = false;
+let previewOriginalContent = "";
 
 const PREVIEW_DEBOUNCE_MS = 700;
 const LARGE_DOC_THRESHOLD = 12000;
@@ -54,6 +56,15 @@ const LARGE_DOC_THRESHOLD = 12000;
 function setStatus(message, type = "info") {
   statusText.textContent = message;
   statusText.dataset.type = type;
+  
+  // 变色表示状态
+  if (type === "error") {
+    statusText.style.color = "#b23a48";
+  } else if (type === "success") {
+    statusText.style.color = "#0f6d5f";
+  } else {
+    statusText.style.color = "#5d6875";
+  }
 }
 
 function setFileMeta(message) {
@@ -62,6 +73,15 @@ function setFileMeta(message) {
 
 function setPdfMeta(message) {
   pdfMeta.textContent = message;
+}
+
+function updateWordCount() {
+  const text = markdownInput.value;
+  const wordCount = text.length;
+  const lineCount = text.split("\n").length;
+  
+  wordCountEl.textContent = `字数: ${wordCount}`;
+  lineCountEl.textContent = `行数: ${lineCount}`;
 }
 
 function revokePdfUrl() {
@@ -82,8 +102,55 @@ function updatePdfDownloadState(enabled) {
   }
 }
 
-function updatePreviewMeta() {
-  previewMeta.textContent = autoPreviewEnabled ? "自动刷新" : "手动刷新";
+function htmlToMarkdown(html) {
+  // 简单的 HTML 到 Markdown 转换
+  let markdown = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<p[^>]*>/gi, "")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<div[^>]*>/gi, "")
+    .replace(/<strong[^>]*>|<b[^>]*>/gi, "**")
+    .replace(/<\/strong>|<\/b>/gi, "**")
+    .replace(/<em[^>]*>|<i[^>]*>/gi, "*")
+    .replace(/<\/em>|<\/i>/gi, "*")
+    .replace(/<h([1-6])[^>]*>(.*?)<\/h\1>/gi, (match, level, content) => {
+      return "#".repeat(parseInt(level)) + " " + content.trim() + "\n";
+    })
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
+    .replace(/<ul[^>]*>|<\/ul>|<ol[^>]*>|<\/ol>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .trim();
+  
+  return markdown;
+}
+
+function togglePreviewEditMode() {
+  if (previewEditMode) {
+    // 退出编辑模式：将修改同步到编辑器
+    const editedContent = htmlPreview.innerHTML;
+    const markdown = htmlToMarkdown(editedContent);
+    
+    if (markdown.trim()) {
+      markdownInput.value = markdown;
+      schedulePreviewUpdate();
+      setStatus("预览编辑已保存，Markdown 已更新", "success");
+    }
+    
+    previewEditMode = false;
+    htmlPreview.classList.remove("edit-mode");
+    htmlPreview.contentEditable = "false";
+    editPreviewButton.textContent = "编辑";
+  } else {
+    // 进入编辑模式
+    previewEditMode = true;
+    previewOriginalContent = htmlPreview.innerHTML;
+    htmlPreview.classList.add("edit-mode");
+    htmlPreview.contentEditable = "true";
+    htmlPreview.focus();
+    editPreviewButton.textContent = "完成编辑";
+    setStatus("预览编辑模式已启用，点击'完成编辑'保存更改", "info");
+  }
 }
 
 async function renderPreview(markdown) {
@@ -115,7 +182,8 @@ async function renderPreview(markdown) {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error || "预览渲染失败");
+    const message = payload.detail ? `${payload.error || "预览渲染失败"}：${payload.detail}` : (payload.error || "预览渲染失败");
+    throw new Error(message);
   }
 
   const data = await response.json();
@@ -123,7 +191,29 @@ async function renderPreview(markdown) {
     return;
   }
 
-  htmlPreview.innerHTML = data.bodyHtml;
+  // 退出编辑模式，如果当前处于编辑模式
+  if (previewEditMode) {
+    previewEditMode = false;
+    htmlPreview.classList.remove("edit-mode");
+    htmlPreview.contentEditable = "false";
+    editPreviewButton.textContent = "编辑";
+  }
+
+  const previewStyleId = "preview-render-styles";
+  const existingStyle = document.getElementById(previewStyleId);
+  if (existingStyle) {
+    existingStyle.remove();
+  }
+
+  if (data.previewCss) {
+    const style = document.createElement("style");
+    style.id = previewStyleId;
+    style.textContent = data.previewCss;
+    htmlPreview.replaceChildren(style);
+    htmlPreview.insertAdjacentHTML("beforeend", data.bodyHtml);
+  } else {
+    htmlPreview.innerHTML = data.bodyHtml;
+  }
 
   lastRenderedMarkdown = normalizedMarkdown;
   setStatus("预览已更新");
@@ -156,6 +246,7 @@ async function handleMarkdownText(markdown, fileName = currentFileName) {
   revokePdfUrl();
   pdfPreview.removeAttribute("src");
   lastRenderedMarkdown = "";
+  updateWordCount();
   await renderPreview(markdown);
 }
 
@@ -206,7 +297,8 @@ async function generatePdf() {
 
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || "PDF 生成失败，请检查文档内容或图片路径");
+      const message = payload.detail ? `${payload.error || "PDF 生成失败，请检查文档内容或图片路径"}：${payload.detail}` : (payload.error || "PDF 生成失败，请检查文档内容或图片路径");
+      throw new Error(message);
     }
 
     const pdfBlob = await response.blob();
@@ -216,8 +308,11 @@ async function generatePdf() {
     downloadPdfButton.download = currentFileName.replace(/\.(md|markdown)$/i, "") + ".pdf";
     openPdfPreviewButton.textContent = "加载 PDF 预览";
     updatePdfDownloadState(true);
-    setPdfMeta(`已生成 PDF · ${(pdfBlob.size / 1024).toFixed(1)} KB · 未加载预览`);
-    setStatus("PDF 已生成，可预览或下载", "success");
+    setPdfMeta(`已生成 PDF · ${(pdfBlob.size / 1024).toFixed(1)} KB`);
+    setStatus("PDF 已生成，正在加载预览...", "success");
+    
+    // 自动加载 PDF 预览
+    loadPdfPreview();
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
@@ -230,7 +325,18 @@ fileInput.addEventListener("change", (event) => {
   handleFile(file);
 });
 
-markdownInput.addEventListener("input", schedulePreviewUpdate);
+markdownInput.addEventListener("input", () => {
+  schedulePreviewUpdate();
+  updateWordCount();
+});
+
+// 快捷键：Ctrl+S 或 Cmd+S 生成 PDF
+markdownInput.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+    event.preventDefault();
+    generatePdf();
+  }
+});
 
 refreshPreviewButton.addEventListener("click", () => {
   renderPreview(markdownInput.value).catch((error) => {
@@ -240,9 +346,10 @@ refreshPreviewButton.addEventListener("click", () => {
   });
 });
 
+editPreviewButton.addEventListener("click", togglePreviewEditMode);
+
 autoPreviewCheckbox.addEventListener("change", () => {
   autoPreviewEnabled = autoPreviewCheckbox.checked;
-  updatePreviewMeta();
 
   if (autoPreviewEnabled) {
     setStatus("已开启自动预览", "success");
@@ -257,7 +364,6 @@ markdownInput.addEventListener("input", () => {
   if (autoPreviewEnabled && markdownInput.value.length > LARGE_DOC_THRESHOLD) {
     autoPreviewEnabled = false;
     autoPreviewCheckbox.checked = false;
-    updatePreviewMeta();
     setStatus("文档较大，已自动切换为手动预览模式", "info");
   }
 });
@@ -280,17 +386,18 @@ dropZone.addEventListener("drop", (event) => {
 
 generatePdfButton.addEventListener("click", generatePdf);
 
-openPdfPreviewButton.addEventListener("click", () => {
+function loadPdfPreview() {
   if (!currentPdfUrl) {
     setStatus("请先生成 PDF", "error");
     return;
   }
 
   pdfPreview.src = currentPdfUrl;
-  pendingPdfPreviewLoad = false;
   openPdfPreviewButton.textContent = "重新加载 PDF 预览";
-  setPdfMeta("PDF 预览已加载（按 Alt + 滚轮可在预览内滚动）");
-});
+  setPdfMeta("PDF 预览已加载");
+}
+
+openPdfPreviewButton.addEventListener("click", loadPdfPreview);
 
 downloadPdfButton.addEventListener("click", (event) => {
   if (downloadPdfButton.classList.contains("disabled")) {
@@ -310,5 +417,4 @@ handleMarkdownText(sampleMarkdown, "sample.md").catch((error) => {
 });
 
 autoPreviewCheckbox.checked = false;
-updatePreviewMeta();
 openPdfPreviewButton.disabled = true;

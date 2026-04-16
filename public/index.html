@@ -3,89 +3,86 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mark2PDF Web</title>
-    <meta name="description" content="拖拽 Markdown 文档上传，在线预览并导出 PDF。" />
+    <title>Mark2PDF</title>
+    <meta name="description" content="拖拽 Markdown 文档，在线预览并导出 PDF。" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="background-orb background-orb-a"></div>
-    <div class="background-orb background-orb-b"></div>
-
-    <main class="app-shell">
-      <section class="hero-card">
-        <div>
-          <p class="eyebrow">Markdown to PDF</p>
-          <h1>拖进来，直接预览，生成 PDF</h1>
-          <p class="hero-copy">
-            支持中文、特殊符号、代码高亮与数学公式。拖拽或浏览上传 md 文件后，左侧编辑、右侧预览，点击生成即可下载 PDF。
-          </p>
+    <div class="app-container">
+      <!-- 顶部导航 -->
+      <header class="app-header">
+        <div class="header-content">
+          <h1 class="app-title">Mark2PDF</h1>
+          <p class="app-subtitle">Markdown to PDF · 中文 · 公式 · 代码高亮</p>
         </div>
-        <div class="hero-actions">
+        <div class="header-actions">
+          <div class="status-indicator" id="statusText">就绪</div>
           <button id="generatePdfButton" class="primary-button" type="button">生成 PDF</button>
-          <a id="downloadPdfButton" class="secondary-button disabled" href="#" download>下载 PDF</a>
+          <a id="downloadPdfButton" class="secondary-button disabled" href="#" download>下载</a>
         </div>
-      </section>
+      </header>
 
-      <section class="workspace-grid">
-        <article class="panel source-panel">
+      <!-- 主工作区：三列布局 -->
+      <div class="workspace">
+        <!-- 左列：编辑 -->
+        <article class="panel editor-panel">
           <div class="panel-header">
-            <div>
-              <p class="panel-kicker">上传与编辑</p>
-              <h2>Markdown 源文档</h2>
-            </div>
-            <div class="panel-meta" id="fileMeta">尚未上传文件</div>
+            <h2>Markdown 源文档</h2>
+            <div class="file-meta" id="fileMeta">未上传</div>
           </div>
 
           <label class="drop-zone" id="dropZone" for="fileInput">
             <input id="fileInput" type="file" accept=".md,.markdown,text/markdown" hidden />
             <div class="drop-zone-inner">
               <div class="drop-icon">⇪</div>
-              <strong>拖拽 Markdown 文件到这里</strong>
-              <span>或点击浏览本地文件</span>
+              <strong>拖拽文件或点击上传</strong>
             </div>
           </label>
 
-          <textarea id="markdownInput" spellcheck="false" placeholder="上传一个 Markdown 文件，或直接在这里编辑内容..."></textarea>
+          <textarea id="markdownInput" spellcheck="false" placeholder="在这里编辑 Markdown..."></textarea>
 
-          <div class="source-footer">
-            <span id="statusText">等待上传</span>
-            <button id="loadSampleButton" class="ghost-button" type="button">加载示例</button>
+          <div class="panel-footer">
+            <div class="word-count">
+              <span id="wordCount">字数: 0</span>
+              <span id="lineCount">行数: 0</span>
+            </div>
+            <button id="loadSampleButton" class="ghost-button small" type="button">加载示例</button>
           </div>
         </article>
 
+        <!-- 中列：预览 -->
         <article class="panel preview-panel">
           <div class="panel-header">
-            <div>
-              <p class="panel-kicker">在线预览</p>
-              <h2>Markdown 渲染结果</h2>
-            </div>
-            <div class="preview-toolbar">
-              <label class="auto-preview-toggle" for="autoPreviewCheckbox">
+            <h2>预览结果</h2>
+            <div class="preview-controls">
+              <label class="checkbox-label" for="autoPreviewCheckbox">
                 <input id="autoPreviewCheckbox" type="checkbox" />
-                自动预览
+                自动
               </label>
-              <button id="refreshPreviewButton" class="ghost-button" type="button">刷新预览</button>
-              <div class="panel-meta" id="previewMeta">手动刷新</div>
+              <button id="refreshPreviewButton" class="ghost-button small" type="button">刷新</button>
+              <button id="editPreviewButton" class="ghost-button small" type="button">编辑</button>
             </div>
           </div>
+
           <div id="htmlPreview" class="preview-frame preview-markdown" aria-label="Markdown 预览"></div>
         </article>
-      </section>
 
-      <section class="pdf-section panel">
-        <div class="panel-header">
-          <div>
-            <p class="panel-kicker">PDF 输出</p>
-            <h2>生成结果预览</h2>
+        <!-- 右列：PDF -->
+        <article class="panel pdf-panel">
+          <div class="panel-header">
+            <h2>PDF 输出</h2>
+            <div class="file-meta" id="pdfMeta">未生成</div>
           </div>
-          <div class="preview-toolbar">
-            <button id="openPdfPreviewButton" class="ghost-button" type="button">加载 PDF 预览</button>
-            <div class="panel-meta" id="pdfMeta">尚未生成</div>
+
+          <div class="pdf-preview-wrapper">
+            <button id="openPdfPreviewButton" class="ghost-button" type="button" style="margin-bottom: 12px; width: 100%;">
+              📄 加载 PDF 预览
+            </button>
+            <iframe id="pdfPreview" title="PDF 预览" class="preview-frame pdf-frame"></iframe>
           </div>
-        </div>
-        <iframe id="pdfPreview" title="PDF 预览" class="preview-frame pdf-frame"></iframe>
-      </section>
-    </main>
+        </article>
+      </div>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>

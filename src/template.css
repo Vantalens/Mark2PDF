@@ -100,8 +100,11 @@ pre {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 0.9em 1em;
-  overflow-x: auto;
-  white-space: pre;
+  overflow-x: visible;
+  overflow-y: visible;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 pre code {
@@ -140,6 +143,9 @@ td {
   padding: 0.5em 0.7em;
   text-align: left;
   vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 img,
@@ -170,13 +176,20 @@ canvas {
 }
 
 .katex-display {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow-x: visible;
+  overflow-y: visible;
   padding: 0.15em 0;
+  margin: 0.5em 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .katex-display > .katex {
-  white-space: nowrap;
+  white-space: normal;
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .symbol-fallback {

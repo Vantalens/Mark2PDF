@@ -6,6 +6,20 @@
 
 一个高质量的 **Markdown → PDF 转换工具**，专注于完美渲染中文文档、复杂公式和代码块。支持网页版和跨平台桌面应用。
 
+## English Version
+
+Mark2PDF is a high-quality **Markdown to PDF converter** focused on stable rendering for Chinese documents, complex math formulas, and code blocks.
+
+It supports both:
+- Web version (Node.js + browser)
+- Cross-platform desktop app (Electron)
+
+Core highlights:
+- Reliable Markdown rendering with KaTeX math support
+- Syntax highlighting for 130+ languages
+- Drag-and-drop upload and one-click PDF export
+- Optimized layout for Chinese/English mixed content
+
 ## 核心特性
 
 ### 完美的文档渲染
@@ -27,7 +41,7 @@
 - Web 版本（Node.js 服务）
 - macOS/Linux（通过源码构建）
 
-## 📦 安装与使用
+## 安装与使用
 
 ### 方式一：Windows 可执行文件（推荐）
 1. 下载 `Mark2PDF-x.x.x.exe` from [Releases](https://github.com/YOUR_USERNAME/Mark2PDF/releases)
@@ -81,20 +95,18 @@ npm run desktop  # 或 npm run dev 开发模式
 - **构建**：electron-builder（portable exe 模式）
 - **GPU 加速**：启用硬件加速提升渲染性能
 
-## 支持的 Markdown 特性
+## 后期目标
 
-| 特性 | 支持 |
-|------|------|
-| 标题、段落 | ✅ |
-| 列表（有序/无序） | ✅ |
-| 代码块与高亮 | ✅ |
-| 表格（Markdown 风格） | ✅ |
-| 任务列表（✓/✗） | ✅ |
-| 脚注与注釈 | ✅ |
-| 行内/块级 LaTeX | ✅ |
-| 超链接与图片 | ✅ |
-| 引用块 | ✅ |
-| 分隔线 | ✅ |
+### 1. 增加转换功能（多向转换）
+不仅仅是 `Markdown → PDF`，后续将支持更多格式之间的双向/多向转换，例如：
+- Markdown ↔ HTML
+- Markdown ↔ DOCX
+- Markdown ↔ TXT / RTF
+- HTML ↔ PDF
+
+### 2. 做成完整系列：Trans2Former
+Mark2PDF 只是起点，后续将扩展为完整的文档转换工具系列 **Trans2Former**，覆盖更多内容处理与格式转换场景。
+
 
 ## 项目结构
 

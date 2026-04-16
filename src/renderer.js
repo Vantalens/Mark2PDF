@@ -160,9 +160,41 @@ async function renderPdfBufferWithElectron(html, pdfOptions) {
 
     try {
       await window.loadFile(tempHtmlPath);
-      await window.webContents.executeJavaScript(
-        "document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()"
-      );
+      await window.webContents.executeJavaScript(`
+        (async () => {
+          const waitForImages = () => Promise.all(
+            Array.from(document.images || []).map((image) => {
+              if (image.complete) {
+                return Promise.resolve();
+              }
+              return new Promise((resolve) => {
+                image.addEventListener('load', resolve, { once: true });
+                image.addEventListener('error', resolve, { once: true });
+              });
+            })
+          );
+
+          const waitForFonts = () => {
+            if (document.fonts && document.fonts.ready) {
+              return document.fonts.ready.catch(() => undefined);
+            }
+            return Promise.resolve();
+          };
+
+          const waitForDom = () => new Promise((resolve) => {
+            if (document.readyState === 'complete') {
+              resolve();
+              return;
+            }
+            window.addEventListener('load', () => resolve(), { once: true });
+          });
+
+          await waitForDom();
+          await waitForFonts();
+          await waitForImages();
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        })();
+      `);
 
       const pageSize = String(pdfOptions?.format || pdfOptions?.pageSize || "A4").toUpperCase();
 
@@ -175,10 +207,52 @@ async function renderPdfBufferWithElectron(html, pdfOptions) {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
   } catch (error) {
-    if (process.versions.electron) {
-      throw new Error(`Electron PDF 渲染失败: ${error.message}`);
+    throw new Error(`Electron PDF 渲染失败: ${error.message}`);
+  }
+}
+
+async function renderPdfBufferWithPlaywright(html, pdfOptions) {
+  try {
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 1200, height: 1697 },
+        deviceScaleFactor: 1.5,
+      });
+
+      await page.setContent(html, { waitUntil: "networkidle" });
+
+      await page.evaluate(async () => {
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+
+        const images = Array.from(document.images || []);
+        await Promise.all(images.map((image) => {
+          if (image.complete) {
+            return Promise.resolve();
+          }
+          return new Promise((resolve) => {
+            image.addEventListener("load", resolve, { once: true });
+            image.addEventListener("error", resolve, { once: true });
+          });
+        }));
+      });
+
+      return await page.pdf({
+        ...DEFAULT_PDF_OPTIONS,
+        ...pdfOptions,
+      });
+    } finally {
+      await browser.close();
     }
-    return null;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    const isChromiumError = msg.includes("not found") || msg.includes("ENOENT");
+    if (isChromiumError) {
+      throw new Error(`Playwright Chromium 未找到，请运行: npx playwright install chromium`);
+    }
+    throw new Error(`Playwright PDF 生成失败: ${msg}`);
   }
 }
 
@@ -201,37 +275,29 @@ export async function renderMarkdownHtml({ markdownRaw, title, baseHref = "" }) 
 export async function renderMarkdownToPdfBuffer({ markdownRaw, title, pdfOptions = {}, baseHref = "" }) {
   const html = await renderMarkdownHtml({ markdownRaw, title, baseHref });
 
+  // 在 Electron 环境中，优先使用 printToPDF
   if (process.versions.electron) {
-    return await renderPdfBufferWithElectron(html, pdfOptions);
-  }
-
-  const electronBuffer = await renderPdfBufferWithElectron(html, pdfOptions);
-  if (electronBuffer) {
-    return electronBuffer;
-  }
-
-  const browser = await chromium.launch({ headless: true });
-  try {
-    const page = await browser.newPage({
-      viewport: { width: 1200, height: 1697 },
-      deviceScaleFactor: 1.5,
-    });
-
-    await page.setContent(html, { waitUntil: "networkidle" });
-
-    // Wait for webfonts to be available before printing for stable glyph output.
-    await page.evaluate(async () => {
-      if (document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
+    try {
+      return await renderPdfBufferWithElectron(html, pdfOptions);
+    } catch (electronError) {
+      // Electron 失败，尝试 Playwright 作为备用
+      try {
+        return await renderPdfBufferWithPlaywright(html, pdfOptions);
+      } catch (playwrightError) {
+        throw new Error(
+          `PDF 生成失败\n` +
+          `Electron 方案: ${electronError.message}\n` +
+          `Playwright 备用: ${playwrightError.message}`
+        );
       }
-    });
+    }
+  }
 
-    return await page.pdf({
-      ...DEFAULT_PDF_OPTIONS,
-      ...pdfOptions,
-    });
-  } finally {
-    await browser.close();
+  // 在非 Electron 环境中（如 CLI），使用 Playwright
+  try {
+    return await renderPdfBufferWithPlaywright(html, pdfOptions);
+  } catch (playwrightError) {
+    throw new Error(`Playwright PDF 生成失败: ${playwrightError.message}`);
   }
 }
 

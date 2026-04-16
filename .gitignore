@@ -3,3 +3,8 @@ dist/
 *.exe
 *.pdf
 .DS_Store
+/RELEASE_CHECKLIST.md
+/Mark2PDF*.exe
+*.log
+*.tmp
+*.cache
