@@ -1,51 +1,156 @@
 # Mark2PDF
 
-一个高质量的 Markdown 转 PDF 工具，支持网页上传预览和 PDF 导出，重点保证以下内容渲染正确：
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Electron](https://img.shields.io/badge/Electron-35.7.5-blue?logo=electron)](https://www.electronjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?logo=nodedotjs)](https://nodejs.org/)
 
-- 字体（包含中英文混排）
-- 特殊符号（数学符号、货币符号、Unicode 符号）
-- 数学公式（行内 `$...$` 与块级 `$$...$$`）
+一个高质量的 **Markdown → PDF 转换工具**，专注于完美渲染中文文档、复杂公式和代码块。支持网页版和跨平台桌面应用。
 
-## 网页版功能
+## 核心特性
 
-- 拖拽或浏览上传 Markdown 文件
-- 在线预览渲染后的文档
-- 生成 PDF 并在网页内预览
-- 一键下载 PDF
+### 完美的文档渲染
+- **中英文混排**：原生支持中文排版和 CJK 字体
+- **复杂公式**：基于 KaTeX 的 LaTeX 数学公式，支持行内和块级
+- **代码高亮**：130+ 编程语言，自动识别
+- **特殊符号**：完整的 Unicode 符号支持（数学、货币、各国文字）
+- **表格排版**：自动列宽分配，支持长内容换行
 
-## 技术方案
+### 实时交互
+- **拖拽上传**：直接拖拽 Markdown 文件到窗口
+- **实时预览**：自动或手动刷新的 Markdown 渲染
+- **预览编辑**：直接在预览中编辑内容，自动同步到源码
+- **一键 PDF**：点击生成或 `Ctrl+S` 快捷键
+- **自动加载**：生成后自动显示 PDF 预览
 
-- Markdown 解析：`markdown-it`
-- 数学公式：`markdown-it-texmath` + `KaTeX`
-- PDF 导出：`Playwright (Chromium)`
-- 代码高亮：`highlight.js`
+### 跨平台支持
+- Windows 10/11 可执行文件（无需安装）
+- Web 版本（Node.js 服务）
+- macOS/Linux（通过源码构建）
 
-## 快速开始
+## 📦 安装与使用
 
+### 方式一：Windows 可执行文件（推荐）
+1. 下载 `Mark2PDF-x.x.x.exe` from [Releases](https://github.com/YOUR_USERNAME/Mark2PDF/releases)
+2. 双击运行，无需安装
+3. 拖拽 `.md` 文件或通过按钮上传
+
+### 方式二：Web 版本
 ```bash
+# 克隆项目
+git clone https://github.com/YOUR_USERNAME/Mark2PDF.git
+cd Mark2PDF
+
+# 安装依赖
 npm install
 npx playwright install chromium
-```
 
-启动网页服务：
-
-```bash
+# 启动服务
 npm start
+
+# 打开浏览器
+# http://localhost:3000
 ```
 
-打开浏览器访问：
-
-```text
-http://localhost:3000
-```
-
-启动桌面版：
-
+### 方式三：桌面应用
 ```bash
-npm run desktop
+npm install
+npm run desktop  # 或 npm run dev 开发模式
 ```
 
-CLI 转换命令：
+## 快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl+S` / `Cmd+S` | 快速生成 PDF |
+| `拖拽文件` | 上传 Markdown 文件 |
+
+## 技术架构
+
+### 前端
+- **框架**：Vanilla JavaScript（无框架依赖）
+- **渲染引擎**：Markdown-it + KaTeX
+- **样式**：原生 CSS Grid（三列布局）
+
+### 后端
+- **服务器**：Express.js
+- **PDF 生成**：Playwright Chromium（优先）+ Electron printToPDF（备用）
+- **图像处理**：基于文件路径的相对资源解析
+
+### 桌面应用
+- **框架**：Electron 35.7.5
+- **构建**：electron-builder（portable exe 模式）
+- **GPU 加速**：启用硬件加速提升渲染性能
+
+## 支持的 Markdown 特性
+
+| 特性 | 支持 |
+|------|------|
+| 标题、段落 | ✅ |
+| 列表（有序/无序） | ✅ |
+| 代码块与高亮 | ✅ |
+| 表格（Markdown 风格） | ✅ |
+| 任务列表（✓/✗） | ✅ |
+| 脚注与注釈 | ✅ |
+| 行内/块级 LaTeX | ✅ |
+| 超链接与图片 | ✅ |
+| 引用块 | ✅ |
+| 分隔线 | ✅ |
+
+## 项目结构
+
+```
+Mark2PDF/
+├── public/               # Web 前端
+│   ├── index.html       # 主页面
+│   ├── app.js           # 应用逻辑
+│   └── styles.css       # UI 样式
+├── src/                 # 后端代码
+│   ├── web-server.js    # Express 服务器
+│   ├── renderer.js      # Markdown/PDF 渲染引擎
+│   ├── electron-main.js # Electron 主进程
+│   └── template.css     # PDF 文档样式
+├── dist/                # 构建输出
+└── package.json
+```
+
+## 开发与构建
+
+### 开发模式
+```bash
+npm run dev          # 启动 Electron 开发版本
+npm start            # 启动 Web 服务
+```
+
+### 生产构建
+```bash
+npm run dist         # 构建 Windows portable exe
+npm run build        # 打包应用（不签名）
+```
+
+## 已知限制
+
+1. **PDF 宽度**：A4 纸张固定宽度 (210mm)，超长公式会换行显示
+2. **图片引用**：仅支持本地相对路径，不支持远程 URL
+3. **Electron PDF**：某些 CSS 特性可能与 printToPDF 兼容性有差异
+
+## 许可证
+
+MIT License - 详见 [LICENSE](LICENSE)
+
+## 贡献
+
+欢迎提交 Issues 和 Pull Requests！
+
+## 联系与反馈
+
+- **GitHub Issues**：[Report a Bug](https://github.com/YOUR_USERNAME/Mark2PDF/issues)
+- **功能建议**：欢迎在 Issues 中提交
+
+---
+
+**最后更新**：2026 年 4 月 16 日  
+**版本**：1.0.0  
+**维护状态**：活跃
 
 ```bash
 npm run convert -- ./example.md
