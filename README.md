@@ -1,108 +1,86 @@
-# Mark2PDF
+# Trans2Former
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Electron](https://img.shields.io/badge/Electron-35.7.5-blue?logo=electron)](https://www.electronjs.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?logo=nodedotjs)](https://nodejs.org/)
+Trans2Former 是一个面向浏览器端构建的多格式文档转换工具。当前项目不再依赖 Electron，应用形态统一为浏览器 Web 应用；下一阶段目标是扩展到 EPUB、Word、PPT、HTML、TXT、PNG 等主流格式之间的任意转换。
 
-一个高质量的 Markdown → PDF 转换工具，专注于中文排版、复杂公式和代码块渲染。支持网页版和 Windows 便携式桌面应用。
+## 当前状态
 
-## 核心特性
+- 项目名：Trans2Former
+- 包名：`trans2former`
+- 当前可用输入：Markdown、HTML、TXT、JSON、CSV、XML、PNG
+- 当前可用输出：Markdown、HTML、TXT、JSON、CSV、XML、PDF-print
+- Electron：已移除
+- Playwright：已从运行依赖移除
+- CLI：已从当前运行形态移除，项目收敛为浏览器 Web 应用
+- PDF：当前通过浏览器打印/另存为 PDF 完成
 
-### 完美的文档渲染
-- 中英文混排
-- 基于 KaTeX 的数学公式渲染
-- 代码高亮
-- 表格自动换行
-- 脚注、任务列表、引用块
+## 目标方向
 
-### 交互体验
-- 拖拽上传 Markdown 文件
-- 实时预览
-- 一键生成 PDF
-- 生成后自动加载 PDF 预览
+Trans2Former 不走“依赖本地安装办公软件”的路线，不要求用户安装 Microsoft Office、LibreOffice、Pandoc、Electron 或 Playwright。转换能力优先通过浏览器端 JavaScript、Web Worker、WASM、Canvas、ZIP/XML 解析和文件 API 实现，必要时只使用可在浏览器运行的轻量前端依赖。
 
-### 发布形态
-- Windows 10/11 便携包，无需安装
-- Web 版本（Node.js 服务）
-- 可通过源码在 macOS / Linux 构建运行
+目标格式矩阵：
 
-## 安装与使用
+- Markdown
+- HTML
+- TXT
+- JSON
+- PDF
+- EPUB
+- Word DOCX
+- PowerPoint PPTX
+- PNG
+- CSV
+- XML
+- ZIP
+- Excel XLSX
+- Audio metadata / transcription（可选能力）
+- YouTube URL extraction（可选能力）
 
-### 方式一：Windows Release 包（推荐）
-1. 从 [Releases](https://github.com/Vantalens/Mark2PDF/releases) 下载 `Mark2PDF-v1.0.0.zip`
-2. 解压后双击 `Mark2PDF.exe`
-3. 直接拖拽 `.md` 文件或点击上传按钮开始使用
+详细分阶段任务见 [DEVELOPMENT_TASKS.md](DEVELOPMENT_TASKS.md)。转换降级策略见 [docs/CONVERSION_POLICY.md](docs/CONVERSION_POLICY.md)，DocumentModel schema 见 [docs/DOCUMENT_MODEL_SCHEMA.md](docs/DOCUMENT_MODEL_SCHEMA.md)。MarkItDown 调研见 [docs/MARKITDOWN_RESEARCH.md](docs/MARKITDOWN_RESEARCH.md)，格式覆盖目标见 [docs/MARKITDOWN_FORMAT_COVERAGE.md](docs/MARKITDOWN_FORMAT_COVERAGE.md)。
 
-### 方式二：Web 版本
+## 仓库地址
+
+https://github.com/Vantalens/Trans2Former
+
+## 本地运行当前版本
+
 ```bash
-git clone https://github.com/Vantalens/Mark2PDF.git
-cd Mark2PDF
 npm install
-npx playwright install chromium
 npm start
 ```
 
-### 方式三：桌面应用开发模式
-```bash
-npm install
-npm run desktop
+打开：
+
+```text
+http://localhost:3000
 ```
 
-## 快捷键
+当前版本使用 Node.js + Express 承载静态前端页面，文档转换在浏览器端执行。后续目标是进一步收敛为可静态部署的 Web 应用。
 
-| 快捷键 | 功能 |
-|--------|------|
-| Ctrl+S / Cmd+S | 快速生成 PDF |
-| 拖拽文件 | 上传 Markdown 文件 |
+## 项目结构
 
-## 技术架构
+```text
+public/              浏览器界面
+public/app.js        浏览器端界面逻辑
+public/browser-transformer.js 浏览器端转换门面
+public/core/         DocumentModel 与 ConverterRegistry
+public/formats/      Markdown / HTML / TXT / JSON / PDF-print 适配器
+src/web-server.js    Express 静态资源容器
+```
 
-### 前端
-- Vanilla JavaScript
-- CSS Grid 三列布局
-- markdown-it + KaTeX
+## 验证
 
-### 后端
-- Node.js + Express
-- Playwright Chromium PDF 路由
-- Electron printToPDF 备用路由
+```bash
+npm test
+```
 
-### 桌面应用
-- Electron 35.7.5
-- electron-builder portable 模式
-- 启用 GPU 硬件加速
-
-## 后期目标
-
-### 1. 增加转换功能（多向转换）
-后续将支持更多格式之间的双向/多向转换，例如：
-- Markdown ↔ HTML
-- Markdown ↔ DOCX
-- Markdown ↔ TXT / RTF
-- HTML ↔ PDF
-
-### 2. 做成完整系列：Trans2Former
-Mark2PDF 只是起点，后续将扩展为完整的文档转换工具系列 Trans2Former，覆盖更多内容处理与格式转换场景。
+当前 smoke test 会验证浏览器端 `DocumentModel -> ConverterRegistry -> 格式适配器` 基础链路。
 
 ## 已知限制
 
-1. PDF 宽度固定为 A4，超长内容会自动换行。
-2. 图片仅支持本地相对路径，不支持远程 URL。
-3. 某些高级 CSS 在 Electron printToPDF 中可能存在兼容性差异。
+1. PDF 当前使用浏览器打印/另存为 PDF，不是程序化生成 `.pdf` 二进制文件。
+2. EPUB、DOCX、PPTX、PNG 尚未实现。
+3. 任意格式互转仍需要继续建立统一中间文档模型，否则复杂格式之间会出现信息丢失。
 
 ## 许可证
 
-MIT License - 详见 [LICENSE](LICENSE)
-
-## 贡献
-
-欢迎提交 Issues 和 Pull Requests。
-
-## 联系与反馈
-
-- GitHub Issues: https://github.com/Vantalens/Mark2PDF/issues
-
----
-
-**最后更新**：2026 年 4 月 16 日
-**版本**：1.0.0
+MIT License - 详见 [LICENSE](LICENSE)。

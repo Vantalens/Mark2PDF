@@ -1,64 +1,34 @@
 {
-  "name": "mark2pdf",
-  "version": "1.0.0",
-  "description": "Convert Markdown files to high-quality PDF with math, symbols, and robust font rendering.",
+  "name": "trans2former",
+  "version": "2.0.0",
+  "description": "Trans2Former: Browser-first multi-format document transformer.",
   "type": "module",
-  "main": "src/electron-main.js",
-  "bin": {
-    "mark2pdf": "src/cli.js"
-  },
+  "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "web": "node src/server.js",
-    "convert": "node src/cli.js",
-    "desktop": "electron .",
-    "dist": "electron-builder --win portable"
+    "test": "node scripts/smoke-test.js"
   },
   "keywords": [
+    "converter",
+    "transformer",
     "markdown",
     "pdf",
-    "katex",
-    "converter"
+    "html",
+    "doc-processing",
+    "browser"
   ],
-  "author": "Mark2PDF Team",
+  "author": "Trans2Former Team",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.21.2",
-    "highlight.js": "^11.11.1",
-    "katex": "^0.16.25",
-    "markdown-it": "^14.1.0",
-    "markdown-it-anchor": "^9.2.0",
-    "markdown-it-footnote": "^4.0.0",
-    "markdown-it-task-lists": "^2.1.1",
-    "markdown-it-texmath": "^1.0.0",
-    "playwright": "^1.54.2"
+    "express": "^4.21.2"
   },
-  "devDependencies": {
-    "electron": "^35.7.5",
-    "electron-builder": "^26.8.1"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Vantalens/Trans2Former.git"
   },
-  "build": {
-    "appId": "com.mark2pdf.app",
-    "productName": "Mark2PDF",
-    "asar": true,
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "src/**/*",
-      "public/**/*",
-      "package.json"
-    ],
-    "extraMetadata": {
-      "main": "src/electron-main.js"
-    },
-    "win": {
-      "target": [
-        "portable"
-      ],
-      "icon": "build/icon.png",
-      "forceCodeSigning": false,
-      "signAndEditExecutable": false
-    }
-  }
+  "bugs": {
+    "url": "https://github.com/Vantalens/Trans2Former/issues"
+  },
+  "homepage": "https://github.com/Vantalens/Trans2Former#readme"
 }

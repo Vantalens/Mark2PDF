@@ -1,64 +1,67 @@
-console.log("[STARTUP] app.js module load start");
+import {
+  convertContent as convertInBrowser,
+  detectFormatFromName,
+  getFormatCapabilities,
+  getOutputExtension,
+  renderPreviewHtml,
+} from "./browser-transformer.js";
 
-const markdownInput = document.getElementById("markdownInput");
+const inputContent = document.getElementById("inputContent");
 const fileInput = document.getElementById("fileInput");
 const dropZone = document.getElementById("dropZone");
 const fileMeta = document.getElementById("fileMeta");
 const statusText = document.getElementById("statusText");
 const htmlPreview = document.getElementById("htmlPreview");
 const pdfPreview = document.getElementById("pdfPreview");
+const textOutputPreview = document.getElementById("textOutputPreview");
 const openPdfPreviewButton = document.getElementById("openPdfPreviewButton");
-const pdfMeta = document.getElementById("pdfMeta");
+const outputMeta = document.getElementById("outputMeta");
 const autoPreviewCheckbox = document.getElementById("autoPreviewCheckbox");
 const refreshPreviewButton = document.getElementById("refreshPreviewButton");
-const generatePdfButton = document.getElementById("generatePdfButton");
-const downloadPdfButton = document.getElementById("downloadPdfButton");
+const transformButton = document.getElementById("transformButton");
+const cancelTransformButton = document.getElementById("cancelTransformButton");
+const downloadOutputButton = document.getElementById("downloadOutputButton");
 const loadSampleButton = document.getElementById("loadSampleButton");
 const wordCountEl = document.getElementById("wordCount");
 const lineCountEl = document.getElementById("lineCount");
+const fromFormatSelect = document.getElementById("fromFormatSelect");
+const toFormatSelect = document.getElementById("toFormatSelect");
+const paperFormatSelect = document.getElementById("paperFormatSelect");
 
-console.log("[STARTUP] DOM elements queried");
+const formatCapabilities = getFormatCapabilities();
 
-const sampleMarkdown = `# Mark2PDF 演示
+const sampleMarkdown = `# Trans2Former Demo
 
-这是中文、English 与特殊符号：∞ ≠ ≤ ≥ ± © ® ™ Ω → ← ✓ ✗。
+这是一个浏览器端转换示例。当前页面可在浏览器内完成 Markdown / HTML / TXT / JSON / CSV / XML 互转。
 
-行内公式：$e^{i\\pi}+1=0$。
-
-块级公式：
-
-$$
-\\int_{0}^{\\infty} e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}
-$$
-
-- [x] 预览 Markdown
-- [x] 生成 PDF
-- [ ] 下载 PDF
+- 不依赖 Electron
+- 不把文档内容发送到后端 API
+- PDF 过渡方案使用浏览器打印并另存为 PDF
 
 \`\`\`javascript
-function sum(a, b) {
-  return a + b;
+function greet(name) {
+  return \`Hello, \${name}\`;
 }
 \`\`\`
 `;
 
 let currentFileName = "document.md";
-let currentSourcePath = "";
-let currentPdfUrl = "";
+let currentOutputBlobUrl = "";
+let currentPrintHtml = "";
 let previewTimer = null;
-let previewToken = 0;
-let previewController = null;
-let lastRenderedMarkdown = "";
+let lastRenderedPayload = "";
 let autoPreviewEnabled = false;
+let lastOutputIsPdf = false;
+let convertWorker = null;
+let convertJobSeq = 0;
+let activeConversion = null;
 
-const PREVIEW_DEBOUNCE_MS = 700;
+const PREVIEW_DEBOUNCE_MS = 300;
 const LARGE_DOC_THRESHOLD = 12000;
 
 function setStatus(message, type = "info") {
   statusText.textContent = message;
   statusText.dataset.type = type;
-  
-  // 变色表示状态
   if (type === "error") {
     statusText.style.color = "#b23a48";
   } else if (type === "success") {
@@ -72,98 +75,109 @@ function setFileMeta(message) {
   fileMeta.textContent = message;
 }
 
-function setPdfMeta(message) {
-  pdfMeta.textContent = message;
+function setOutputMeta(message) {
+  outputMeta.textContent = message;
 }
 
 function updateWordCount() {
-  const text = markdownInput.value;
-  const wordCount = text.length;
-  const lineCount = text.split("\n").length;
-  
-  wordCountEl.textContent = `字数: ${wordCount}`;
-  lineCountEl.textContent = `行数: ${lineCount}`;
+  const text = inputContent.value;
+  wordCountEl.textContent = `字数: ${text.length}`;
+  lineCountEl.textContent = `行数: ${text.split("\n").length}`;
 }
 
-function revokePdfUrl() {
-  if (currentPdfUrl) {
-    URL.revokeObjectURL(currentPdfUrl);
-    currentPdfUrl = "";
+function revokeOutputUrl() {
+  if (currentOutputBlobUrl) {
+    URL.revokeObjectURL(currentOutputBlobUrl);
+    currentOutputBlobUrl = "";
   }
 }
 
-function updatePdfDownloadState(enabled) {
+function setTransformBusy(isBusy) {
+  transformButton.disabled = isBusy;
+  cancelTransformButton.disabled = !isBusy;
+  cancelTransformButton.hidden = !isBusy;
+}
+
+function updateDownloadState(enabled) {
   if (enabled) {
-    downloadPdfButton.classList.remove("disabled");
-    openPdfPreviewButton.disabled = false;
+    downloadOutputButton.classList.remove("disabled");
+    openPdfPreviewButton.disabled = !lastOutputIsPdf;
   } else {
-    downloadPdfButton.classList.add("disabled");
-    downloadPdfButton.href = "#";
+    downloadOutputButton.classList.add("disabled");
+    downloadOutputButton.href = "#";
     openPdfPreviewButton.disabled = true;
   }
 }
 
-async function renderPreview(markdown) {
-  const renderStart = Date.now();
-  console.log("[STARTUP] renderPreview start");
-  
-  const normalizedMarkdown = String(markdown ?? "");
-  if (normalizedMarkdown === lastRenderedMarkdown) {
-    return;
-  }
-
-  if (previewController) {
-    previewController.abort();
-  }
-  previewController = new AbortController();
-
-  const token = ++previewToken;
-  setStatus("正在渲染预览...");
-
-  const response = await fetch("/api/render-html", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      markdown: normalizedMarkdown,
-      filename: currentFileName,
-      sourcePath: currentSourcePath,
-    }),
-    signal: previewController.signal,
-  });
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    const message = payload.detail ? `${payload.error || "预览渲染失败"}：${payload.detail}` : (payload.error || "预览渲染失败");
-    throw new Error(message);
-  }
-
-  const data = await response.json();
-  if (token !== previewToken) {
-    return;
-  }
-
-  const previewStyleId = "preview-render-styles";
-  const existingStyle = document.getElementById(previewStyleId);
-  if (existingStyle) {
-    existingStyle.remove();
-  }
-
-  if (data.previewCss) {
-    const style = document.createElement("style");
-    style.id = previewStyleId;
-    style.textContent = data.previewCss;
-    htmlPreview.replaceChildren(style);
-    htmlPreview.insertAdjacentHTML("beforeend", data.bodyHtml);
+function updateOutputPreviewVisibility(isPdf) {
+  lastOutputIsPdf = isPdf;
+  if (isPdf) {
+    pdfPreview.style.display = "block";
+    openPdfPreviewButton.style.display = "block";
+    openPdfPreviewButton.textContent = "浏览器打印 / 另存为 PDF";
+    textOutputPreview.style.display = "none";
   } else {
-    htmlPreview.innerHTML = data.bodyHtml;
+    pdfPreview.style.display = "none";
+    openPdfPreviewButton.style.display = "none";
+    textOutputPreview.style.display = "block";
+  }
+}
+
+function getPayloadKey() {
+  return JSON.stringify({
+    content: inputContent.value,
+    from: fromFormatSelect.value,
+    file: currentFileName,
+  });
+}
+
+function syncPdfPaperControl() {
+  paperFormatSelect.disabled = toFormatSelect.value !== "pdf";
+}
+
+function updateFormatCapabilityNote() {
+  const noteEl = document.getElementById("formatCapabilityNote");
+  if (!noteEl) {
+    return;
+  }
+  const from = formatCapabilities.find((item) => item.format === fromFormatSelect.value);
+  const to = formatCapabilities.find((item) => item.format === toFormatSelect.value);
+  const notes = [];
+  if (from?.note) notes.push(`输入 ${from.label}: ${from.note}`);
+  if (to?.note) notes.push(`输出 ${to.label}: ${to.note}`);
+  noteEl.textContent = notes.length > 0 ? notes.join("；") : "当前转换会经过 DocumentModel 标准化，复杂样式可能降级。";
+}
+
+function syncFormatOptions() {
+  const currentFrom = fromFormatSelect.value || "md";
+  const currentTo = toFormatSelect.value || "html";
+  fromFormatSelect.replaceChildren(...formatCapabilities
+    .filter((item) => item.canRead)
+    .map((item) => new Option(item.label, item.format)));
+  toFormatSelect.replaceChildren(...formatCapabilities
+    .filter((item) => item.canWrite)
+    .map((item) => new Option(item.label, item.format)));
+  fromFormatSelect.value = [...fromFormatSelect.options].some((option) => option.value === currentFrom) ? currentFrom : "md";
+  toFormatSelect.value = [...toFormatSelect.options].some((option) => option.value === currentTo) ? currentTo : "html";
+  updateFormatCapabilityNote();
+}
+
+function getBaseName(fileName) {
+  return String(fileName || "document").replace(/\.[^.]+$/g, "") || "document";
+}
+
+function renderPreview() {
+  const renderStart = Date.now();
+  const payloadKey = getPayloadKey();
+  if (payloadKey === lastRenderedPayload) {
+    return;
   }
 
-  lastRenderedMarkdown = normalizedMarkdown;
-  const elapsed = Date.now() - renderStart;
-  console.log(`[STARTUP] renderPreview complete: ${elapsed}ms`);
-  setStatus("预览已更新");
+  setStatus("正在浏览器端渲染预览...");
+  const bodyHtml = renderPreviewHtml(inputContent.value, fromFormatSelect.value);
+  htmlPreview.innerHTML = bodyHtml;
+  lastRenderedPayload = payloadKey;
+  setStatus(`浏览器端预览已更新 (${Date.now() - renderStart}ms)`, "success");
 }
 
 function schedulePreviewUpdate() {
@@ -171,100 +185,192 @@ function schedulePreviewUpdate() {
     setStatus("内容已更新，点击“刷新预览”查看", "info");
     return;
   }
-
   window.clearTimeout(previewTimer);
   previewTimer = window.setTimeout(() => {
-    renderPreview(markdownInput.value).catch((error) => {
-      if (error.name !== "AbortError") {
-        setStatus(error.message, "error");
-      }
-    });
+    try {
+      renderPreview();
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
   }, PREVIEW_DEBOUNCE_MS);
 }
 
-async function handleMarkdownText(markdown, fileName = currentFileName) {
+async function handleInputText(rawContent, fileName = currentFileName) {
   currentFileName = fileName;
-  markdownInput.value = markdown;
+  inputContent.value = rawContent;
   setFileMeta(fileName);
-  setStatus("文件已载入，正在预览...");
-  updatePdfDownloadState(false);
-  setPdfMeta("尚未生成");
-  openPdfPreviewButton.textContent = "加载 PDF 预览";
-  revokePdfUrl();
+  updateDownloadState(false);
+  setOutputMeta("尚未生成");
+  revokeOutputUrl();
+  currentPrintHtml = "";
   pdfPreview.removeAttribute("src");
-  lastRenderedMarkdown = "";
+  textOutputPreview.textContent = "";
+  lastRenderedPayload = "";
   updateWordCount();
-  await renderPreview(markdown);
+  renderPreview();
 }
 
-async function readFile(file) {
-  return await file.text();
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")), { once: true });
+    reader.addEventListener("error", () => reject(reader.error || new Error("文件读取失败")), { once: true });
+    reader.readAsDataURL(file);
+  });
 }
 
 async function handleFile(file) {
-  if (!file) return;
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  if (!["md", "markdown"].includes(ext)) {
-    setStatus("请选择 .md 或 .markdown 文件", "error");
+  if (!file) {
+    return;
+  }
+
+  const detectedFormat = detectFormatFromName(file.name);
+  if (!detectedFormat) {
+    setStatus("请选择 .md / .html / .txt / .json / .csv / .xml / .png 文件", "error");
     return;
   }
 
   try {
-    const markdown = await readFile(file);
-    currentSourcePath = typeof file.path === "string" ? file.path : "";
-    await handleMarkdownText(markdown, file.name);
+    const content = detectedFormat === "png" ? await readFileAsDataUrl(file) : await file.text();
+    fromFormatSelect.value = detectedFormat;
+    await handleInputText(content, file.name);
   } catch (error) {
     setStatus(error.message, "error");
   }
 }
 
-async function generatePdf() {
-  const markdown = markdownInput.value;
-  if (!markdown.trim()) {
-    setStatus("请先上传或输入 Markdown 内容", "error");
+function createDownloadUrl(outputText, mime) {
+  revokeOutputUrl();
+  currentOutputBlobUrl = URL.createObjectURL(new Blob([outputText], { type: mime }));
+  return currentOutputBlobUrl;
+}
+
+function createConvertWorker() {
+  if (typeof Worker === "undefined") {
+    return null;
+  }
+  return new Worker("/workers/convert-worker.js", { type: "module" });
+}
+
+function convertWithWorker(payload) {
+  const worker = createConvertWorker();
+  if (!worker) {
+    return Promise.resolve(convertInBrowser(payload));
+  }
+
+  const id = `convert-${Date.now()}-${++convertJobSeq}`;
+  return new Promise((resolve, reject) => {
+    function cleanup() {
+      worker.removeEventListener("message", handleMessage);
+      worker.removeEventListener("error", handleError);
+      if (activeConversion?.id === id) {
+        activeConversion = null;
+      }
+      worker.terminate();
+    }
+
+    function handleError(event) {
+      cleanup();
+      reject(new Error(event.message || "Worker 转换失败"));
+    }
+
+    function handleMessage(event) {
+      const message = event.data || {};
+      if (message.id !== id) {
+        return;
+      }
+      if (message.type === "progress") {
+        setStatus(message.message || `转换进度 ${Math.round((message.progress || 0) * 100)}%`);
+        return;
+      }
+      cleanup();
+      if (message.type === "result") {
+        resolve(message.result);
+        return;
+      }
+      reject(new Error(message.error?.message || "转换失败"));
+    }
+
+    activeConversion = { id, worker, reject };
+    worker.addEventListener("message", handleMessage);
+    worker.addEventListener("error", handleError);
+    worker.postMessage({ id, payload });
+  });
+}
+
+async function transformContent() {
+  const content = inputContent.value;
+  if (!content.trim()) {
+    setStatus("请先上传或输入内容", "error");
     return;
   }
 
-  generatePdfButton.disabled = true;
-  setStatus("正在生成 PDF...");
+  const from = fromFormatSelect.value;
+  const to = toFormatSelect.value;
+
+  setTransformBusy(true);
+  setStatus("正在浏览器端执行转换...");
 
   try {
-    const response = await fetch("/api/pdf", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        markdown,
-        filename: currentFileName,
-        sourcePath: currentSourcePath,
-        format: "A4",
-      }),
-    });
+    const title = getBaseName(currentFileName);
+    const result = await convertWithWorker({ content, from, to, title, fileName: currentFileName });
+    const baseName = getBaseName(currentFileName);
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      const message = payload.detail ? `${payload.error || "PDF 生成失败，请检查文档内容或图片路径"}：${payload.detail}` : (payload.error || "PDF 生成失败，请检查文档内容或图片路径");
-      throw new Error(message);
+    if (result.type === "print") {
+      currentPrintHtml = result.data;
+      const previewUrl = createDownloadUrl(currentPrintHtml, result.mime);
+      pdfPreview.src = previewUrl;
+
+      downloadOutputButton.href = previewUrl;
+      downloadOutputButton.download = `${baseName}.print.html`;
+      downloadOutputButton.textContent = "下载打印版 HTML";
+
+      updateOutputPreviewVisibility(true);
+      updateDownloadState(true);
+      setOutputMeta("已生成浏览器打印页面");
+      setStatus("已生成打印页面，可用浏览器另存为 PDF", "success");
+      return;
     }
 
-    const pdfBlob = await response.blob();
-    revokePdfUrl();
-    currentPdfUrl = URL.createObjectURL(pdfBlob);
-    downloadPdfButton.href = currentPdfUrl;
-    downloadPdfButton.download = currentFileName.replace(/\.(md|markdown)$/i, "") + ".pdf";
-    openPdfPreviewButton.textContent = "加载 PDF 预览";
-    updatePdfDownloadState(true);
-    setPdfMeta(`已生成 PDF · ${(pdfBlob.size / 1024).toFixed(1)} KB`);
-    setStatus("PDF 已生成，正在加载预览...", "success");
-    
-    // 自动加载 PDF 预览
-    loadPdfPreview();
+    textOutputPreview.textContent = result.data;
+    const outputUrl = createDownloadUrl(result.data, result.mime);
+    downloadOutputButton.href = outputUrl;
+    downloadOutputButton.download = `${baseName}.${getOutputExtension(result.format)}`;
+    downloadOutputButton.textContent = "下载输出";
+
+    updateOutputPreviewVisibility(false);
+    updateDownloadState(true);
+    setOutputMeta(`文本输出已生成 · ${result.data.length} chars`);
+    setStatus("浏览器端转换成功", "success");
   } catch (error) {
-    setStatus(error.message, "error");
+    if (error.message === "转换已取消") {
+      setStatus("转换已取消", "info");
+    } else {
+      setStatus(error.message, "error");
+    }
   } finally {
-    generatePdfButton.disabled = false;
+    setTransformBusy(false);
   }
+}
+
+function printCurrentPdf() {
+  if (!currentPrintHtml) {
+    setStatus("当前没有可打印内容", "error");
+    return;
+  }
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    setStatus("浏览器阻止了打印窗口，请允许弹窗后重试", "error");
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(currentPrintHtml);
+  printWindow.document.close();
+  printWindow.addEventListener("load", () => {
+    printWindow.focus();
+    printWindow.print();
+  }, { once: true });
 }
 
 fileInput.addEventListener("change", (event) => {
@@ -272,30 +378,33 @@ fileInput.addEventListener("change", (event) => {
   handleFile(file);
 });
 
-markdownInput.addEventListener("input", () => {
+inputContent.addEventListener("input", () => {
   schedulePreviewUpdate();
   updateWordCount();
+  if (autoPreviewEnabled && inputContent.value.length > LARGE_DOC_THRESHOLD) {
+    autoPreviewEnabled = false;
+    autoPreviewCheckbox.checked = false;
+    setStatus("文档较大，已自动切换为手动预览模式", "info");
+  }
 });
 
-// 快捷键：Ctrl+S 或 Cmd+S 生成 PDF
-markdownInput.addEventListener("keydown", (event) => {
+inputContent.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
     event.preventDefault();
-    generatePdf();
+    transformContent();
   }
 });
 
 refreshPreviewButton.addEventListener("click", () => {
-  renderPreview(markdownInput.value).catch((error) => {
-    if (error.name !== "AbortError") {
-      setStatus(error.message, "error");
-    }
-  });
+  try {
+    renderPreview();
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
 });
 
 autoPreviewCheckbox.addEventListener("change", () => {
   autoPreviewEnabled = autoPreviewCheckbox.checked;
-
   if (autoPreviewEnabled) {
     setStatus("已开启自动预览", "success");
     schedulePreviewUpdate();
@@ -305,12 +414,16 @@ autoPreviewCheckbox.addEventListener("change", () => {
   }
 });
 
-markdownInput.addEventListener("input", () => {
-  if (autoPreviewEnabled && markdownInput.value.length > LARGE_DOC_THRESHOLD) {
-    autoPreviewEnabled = false;
-    autoPreviewCheckbox.checked = false;
-    setStatus("文档较大，已自动切换为手动预览模式", "info");
-  }
+fromFormatSelect.addEventListener("change", () => {
+  lastRenderedPayload = "";
+  schedulePreviewUpdate();
+  updateFormatCapabilityNote();
+});
+
+toFormatSelect.addEventListener("change", () => {
+  syncPdfPaperControl();
+  updateOutputPreviewVisibility(toFormatSelect.value === "pdf");
+  updateFormatCapabilityNote();
 });
 
 dropZone.addEventListener("dragover", (event) => {
@@ -329,54 +442,51 @@ dropZone.addEventListener("drop", (event) => {
   handleFile(file);
 });
 
-generatePdfButton.addEventListener("click", generatePdf);
-
-function loadPdfPreview() {
-  if (!currentPdfUrl) {
-    setStatus("请先生成 PDF", "error");
+transformButton.addEventListener("click", transformContent);
+cancelTransformButton.addEventListener("click", () => {
+  if (!activeConversion) {
     return;
   }
+  const { worker, reject } = activeConversion;
+  activeConversion = null;
+  worker.terminate();
+  reject(new Error("转换已取消"));
+  setTransformBusy(false);
+  setStatus("转换已取消", "info");
+});
+openPdfPreviewButton.addEventListener("click", printCurrentPdf);
 
-  pdfPreview.src = currentPdfUrl;
-  openPdfPreviewButton.textContent = "重新加载 PDF 预览";
-  setPdfMeta("PDF 预览已加载");
-}
-
-openPdfPreviewButton.addEventListener("click", loadPdfPreview);
-
-downloadPdfButton.addEventListener("click", (event) => {
-  if (downloadPdfButton.classList.contains("disabled")) {
+downloadOutputButton.addEventListener("click", (event) => {
+  if (downloadOutputButton.classList.contains("disabled")) {
     event.preventDefault();
   }
 });
 
 loadSampleButton.addEventListener("click", () => {
-  currentSourcePath = "";
-  handleMarkdownText(sampleMarkdown, "sample.md").catch((error) => {
-    setStatus(error.message, "error");
-  });
+  fromFormatSelect.value = "md";
+  toFormatSelect.value = "html";
+  syncPdfPaperControl();
+  handleInputText(sampleMarkdown, "sample.md");
 });
 
 function bootstrapInitialSample() {
-  console.log("[STARTUP] bootstrapInitialSample start");
-  currentSourcePath = "";
   currentFileName = "sample.md";
-  markdownInput.value = sampleMarkdown;
+  inputContent.value = sampleMarkdown;
   setFileMeta("sample.md");
-  updatePdfDownloadState(false);
-  setPdfMeta("尚未生成");
-  openPdfPreviewButton.textContent = "加载 PDF 预览";
-  revokePdfUrl();
+  setOutputMeta("尚未生成");
+  updateOutputPreviewVisibility(false);
+  updateDownloadState(false);
+  revokeOutputUrl();
   pdfPreview.removeAttribute("src");
-  lastRenderedMarkdown = "";
+  textOutputPreview.textContent = "";
+  lastRenderedPayload = "";
   updateWordCount();
-  setStatus("示例已加载 · 点击「刷新预览」查看");
-
-  // 不在启动时立即渲染，让 UI 先显示
+  renderPreview();
+  setStatus("示例已加载，当前转换在浏览器端执行", "success");
 }
 
-console.log("[STARTUP] calling bootstrapInitialSample");
+syncFormatOptions();
 bootstrapInitialSample();
-
 autoPreviewCheckbox.checked = false;
+syncPdfPaperControl();
 openPdfPreviewButton.disabled = true;

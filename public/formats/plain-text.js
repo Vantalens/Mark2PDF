@@ -1,0 +1,27 @@
+import { createDocumentModel, createHeading, createParagraph } from "../core/document-model.js";
+import { getPlainText } from "../core/document-model.js";
+
+export function readText({ content, title = "document", format = "txt" }) {
+  const blocks = String(content ?? "")
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk, index) => {
+      if (index === 0 && chunk.length < 80 && !/[.!?。！？]$/.test(chunk)) {
+        return createHeading(1, chunk);
+      }
+      return createParagraph(chunk.replace(/\n/g, " "));
+    });
+
+  return createDocumentModel({ title, sourceFormat: format, blocks });
+}
+
+export function writeText({ model }) {
+  return {
+    type: "text",
+    format: "txt",
+    data: `${getPlainText(model)}\n`,
+    mime: "text/plain;charset=utf-8",
+  };
+}

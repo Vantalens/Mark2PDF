@@ -3,43 +3,71 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mark2PDF</title>
-    <meta name="description" content="拖拽 Markdown 文档，在线预览并导出 PDF。" />
+    <title>Trans2Former</title>
+    <meta name="description" content="Trans2Former 浏览器端多格式文档转换：Markdown / HTML / TXT / JSON / CSV / XML / PNG / PDF。" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="app-container">
-      <!-- 顶部导航 -->
       <header class="app-header">
         <div class="header-content">
-          <h1 class="app-title">Mark2PDF</h1>
-          <p class="app-subtitle">Markdown to PDF · 中文 · 公式 · 代码高亮</p>
+          <h1 class="app-title">Trans2Former</h1>
+          <p class="app-subtitle">Browser-side conversion for Markdown / HTML / TXT / JSON / CSV / XML / PNG / PDF</p>
         </div>
         <div class="header-actions">
           <div class="status-indicator" id="statusText">就绪</div>
-          <button id="generatePdfButton" class="primary-button" type="button">生成 PDF</button>
-          <a id="downloadPdfButton" class="secondary-button disabled" href="#" download>下载</a>
+          <button id="transformButton" class="primary-button" type="button">执行转换</button>
+          <button id="cancelTransformButton" class="secondary-button" type="button" disabled hidden>取消</button>
+          <a id="downloadOutputButton" class="secondary-button disabled" href="#" download>下载输出</a>
         </div>
       </header>
 
-      <!-- 主工作区：三列布局 -->
       <div class="workspace">
-        <!-- 左列：编辑 -->
         <article class="panel editor-panel">
           <div class="panel-header">
-            <h2>Markdown 源文档</h2>
+            <h2>输入文档</h2>
             <div class="file-meta" id="fileMeta">未上传</div>
           </div>
 
           <label class="drop-zone" id="dropZone" for="fileInput">
-            <input id="fileInput" type="file" accept=".md,.markdown,text/markdown" hidden />
+            <input id="fileInput" type="file" accept=".md,.markdown,.html,.htm,.txt,.json,.csv,.xml,.png,text/markdown,text/html,text/plain,application/json,text/csv,application/xml,text/xml,image/png" hidden />
             <div class="drop-zone-inner">
               <div class="drop-icon">⇪</div>
               <strong>拖拽文件或点击上传</strong>
             </div>
           </label>
 
-          <textarea id="markdownInput" spellcheck="false" placeholder="在这里编辑 Markdown..."></textarea>
+          <div class="format-controls">
+            <label>
+              输入格式
+              <select id="fromFormatSelect">
+                <option value="md">Markdown</option>
+                <option value="html">HTML</option>
+                <option value="txt">TXT</option>
+                <option value="json">JSON</option>
+              </select>
+            </label>
+            <label>
+              输出格式
+              <select id="toFormatSelect">
+                <option value="pdf">PDF</option>
+                <option value="html">HTML</option>
+                <option value="md">Markdown</option>
+                <option value="txt">TXT</option>
+                <option value="json">JSON</option>
+              </select>
+            </label>
+            <label>
+              纸张
+              <select id="paperFormatSelect">
+                <option value="A4">A4</option>
+                <option value="Letter">Letter</option>
+              </select>
+            </label>
+          </div>
+          <div id="formatCapabilityNote" class="format-capability-note"></div>
+
+          <textarea id="inputContent" spellcheck="false" placeholder="在这里编辑输入内容..."></textarea>
 
           <div class="panel-footer">
             <div class="word-count">
@@ -50,10 +78,9 @@
           </div>
         </article>
 
-        <!-- 中列：预览 -->
         <article class="panel preview-panel">
           <div class="panel-header">
-            <h2>预览结果</h2>
+            <h2>HTML 预览（标准化）</h2>
             <div class="preview-controls">
               <label class="checkbox-label" for="autoPreviewCheckbox">
                 <input id="autoPreviewCheckbox" type="checkbox" />
@@ -66,18 +93,18 @@
           <div id="htmlPreview" class="preview-frame preview-markdown" aria-label="Markdown 预览"></div>
         </article>
 
-        <!-- 右列：PDF -->
-        <article class="panel pdf-panel">
+        <article class="panel output-panel">
           <div class="panel-header">
-            <h2>PDF 输出</h2>
-            <div class="file-meta" id="pdfMeta">未生成</div>
+            <h2>转换输出</h2>
+            <div class="file-meta" id="outputMeta">未生成</div>
           </div>
 
-          <div class="pdf-preview-wrapper">
+          <div class="output-preview-wrapper">
             <button id="openPdfPreviewButton" class="ghost-button" type="button" style="margin-bottom: 12px; width: 100%;">
-              📄 加载 PDF 预览
+              浏览器打印 / 另存为 PDF
             </button>
             <iframe id="pdfPreview" title="PDF 预览" class="preview-frame pdf-frame"></iframe>
+            <pre id="textOutputPreview" class="preview-frame text-output-preview"></pre>
           </div>
         </article>
       </div>

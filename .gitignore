@@ -1,10 +1,63 @@
+# Dependencies
 node_modules/
+.pnpm-store/
+.yarn/
+
+# Build output / generated bundles
 dist/
+build-output/
+out/
+coverage/
+.cache/
+.parcel-cache/
+.vite/
+
+# Legacy desktop/package artifacts
 *.exe
+*.msi
+*.dmg
+*.AppImage
+*.asar
+*.blockmap
+*.snap
+
+# Document conversion outputs
 *.pdf
-.DS_Store
-/RELEASE_CHECKLIST.md
-/Mark2PDF*.exe
+*.docx
+*.pptx
+*.xlsx
+*.epub
+*.zip
+*.7z
+*.rar
+*.print.html
+
+# Runtime / logs / temp
 *.log
 *.tmp
+*.temp
 *.cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Local environment
+.env
+.env.*
+!.env.example
+.local/
+
+# Project-local release scratch
+/RELEASE_CHECKLIST.md
+/release/
+/releases/
+/artifacts/
+
+# Test screenshots / debug captures
+/test-results/
+/playwright-report/
+/screenshots/
+*_debug*.png

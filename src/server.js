@@ -4,7 +4,7 @@ const port = Number(process.env.PORT || 3000);
 
 startWebServer(port)
   .then(({ port: actualPort }) => {
-    process.stdout.write(`Mark2PDF web server running at http://localhost:${actualPort}\n`);
+    process.stdout.write(`Trans2Former web server running at http://localhost:${actualPort}\n`);
   })
   .catch((error) => {
     process.stderr.write(`Failed to start web server: ${error.message}\n`);
