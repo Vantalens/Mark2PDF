@@ -146,6 +146,9 @@ npm test
 3. 任意格式互转仍需要继续建立统一中间文档模型，否则复杂格式之间会出现信息丢失。
 4. 当前文本读取仍有内存压力，后续会逐步改造为分片/流式处理，以真正支撑超大文件。
 
+## Community
+https://linux.do/
+
 ## 许可证
 
 MIT License - 详见 [LICENSE](LICENSE)。
