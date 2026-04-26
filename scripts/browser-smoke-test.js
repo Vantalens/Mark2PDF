@@ -24,6 +24,8 @@ try {
   assert.equal(indexHtml.includes("id=\"htmlPreview\""), true, "main app should expose preview panel");
   assert.equal(indexHtml.includes("id=\"errorDetailsPanel\""), true, "main app should expose error details panel");
   assert.equal(indexHtml.includes("id=\"copyErrorDiagnosticsButton\""), true, "main app should expose sanitized diagnostics copy control");
+  assert.equal(indexHtml.includes("id=\"conversionProgress\""), true, "main app should expose conversion progress element");
+  assert.equal(indexHtml.includes("id=\"progressStage\""), true, "main app should expose progress stage label");
 
   const smokeHtml = await fetchText(baseUrl, "/smoke-test.html");
   assert.equal(smokeHtml.includes("Trans2Former Browser Smoke Test"), true);
@@ -42,9 +44,15 @@ try {
   const appJs = await fetchText(baseUrl, "/app.js");
   assert.equal(appJs.includes("renderErrorDetails"), true, "main app should render structured conversion errors");
   assert.equal(appJs.includes("sanitizeErrorDiagnostics"), true, "main app should sanitize copied diagnostics");
+  assert.equal(appJs.includes("updateConversionProgress"), true, "main app should update staged conversion progress");
+  assert.equal(appJs.includes("resetGeneratedOutput"), true, "main app should centralize generated output cleanup");
+  assert.equal(appJs.includes("resetGeneratedOutput(\"已取消，未保留输出\")"), true, "cancel action should clear stale output and download URLs");
 
   const workerJs = await fetchText(baseUrl, "/workers/convert-worker.js");
   assert.equal(workerJs.includes("postMessage"), true, "conversion worker should be served");
+  for (const stage of ["read", "parse", "validate", "convert", "render", "package"]) {
+    assert.equal(workerJs.includes(`stage: \"${stage}\"`), true, `conversion worker should emit ${stage} stage`);
+  }
 
   console.log(`Browser smoke test passed: static app and browser self-test are available at ${baseUrl}/smoke-test.html.`);
 } finally {

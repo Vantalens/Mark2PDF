@@ -13,12 +13,22 @@
 - 新增本地安全策略 `docs/SECURITY_POLICY.md` 和 local security test。
 - 新增结构化 `ConversionError`，覆盖 parse / validate / convert / render / download 分类。
 - 新增错误详情面板和脱敏诊断复制能力。
+- 新增转换阶段进度条，Worker 会透传 read / parse / validate / convert / render / package 进度事件。
+- 新增取消转换后的输出清理：终止 active Worker、撤销旧 Blob URL、清空旧输出并禁用旧下载入口。
 - 新增市场调研文档 `docs/MARKET_RESEARCH_2026-04-26.md`。
+- 新增产品亮点规划：上传文件大小不设置人为固定上限，后续通过分片/流式/Worker/渐进预览支撑超大文件。
+- 新增动态分块与结构化合并规划：单个超大文件可按语义子模块转换后合并，目标是与直接转换结果语义等价。
+- 调整水平拆分描述：代码模块拆分是工程手段，不能替代单文件动态分块转换，也不能破坏转换效果。
+- 新增资源预算文档 `docs/RESOURCE_BUDGET.md` 和 resource budget test，防止重依赖进入默认核心路径。
+- 新增开发文档总目录 `docs/README.md`、产品策略文档 `docs/PRODUCT_STRATEGY.md` 和格式路线文档 `docs/FORMAT_ROADMAP.md`。
+- 新增 `docs/development-standards/` 开发规范体系，覆盖文档规则、开发流程、AI 协作、质量门禁、安全和模块插件治理。
+- 新增热门基础格式免下载原则：`format-basic` 必须保持小而可用，覆盖高频轻量格式。
 
 ### 变更
 
-- `npm test` 现在运行核心 smoke、转换快照、浏览器自检静态服务检查和本地安全 smoke test。
-- `DEVELOPMENT_TASKS.md` 已重排为市场路径、产品壁垒、数据安全、GUI/PWA/超广格式路线。
+- 确定开发方向为模块化插件设计：基础热门格式免下载，重格式和可选能力按用户需求下载或加载对应模块插件。
+- `npm test` 现在运行核心 smoke、转换快照、浏览器自检静态服务检查、本地安全 smoke test 和资源预算 smoke test。
+- `DEVELOPMENT_TASKS.md` 已整理为任务看板，长期原则和格式矩阵移入 `docs/` 专题文档。
 - Worker 错误现在透传结构化错误字段，便于 UI 渲染。
 
 ### 安全

@@ -43,6 +43,16 @@ npm test
 - 固定转换快照
 - 静态页面和浏览器自检入口
 - 本地安全策略，防止默认前端引入上传、遥测或持久化用户内容
+- 资源预算策略，防止重依赖进入默认核心路径
+
+## 开发文档
+
+- 文档总目录：[docs/README.md](docs/README.md)
+- 当前任务看板：[DEVELOPMENT_TASKS.md](DEVELOPMENT_TASKS.md)
+- 产品策略：[docs/PRODUCT_STRATEGY.md](docs/PRODUCT_STRATEGY.md)
+- 格式路线：[docs/FORMAT_ROADMAP.md](docs/FORMAT_ROADMAP.md)
+- 开发规范：[docs/development-standards/00_README.md](docs/development-standards/00_README.md)
+- 成本与资源治理：[docs/development-standards/07_COST_AND_RESOURCE_GOVERNANCE.md](docs/development-standards/07_COST_AND_RESOURCE_GOVERNANCE.md)
 
 ## 当前限制
 

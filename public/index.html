@@ -20,6 +20,15 @@
           <button id="cancelTransformButton" class="secondary-button" type="button" disabled hidden>取消</button>
           <a id="downloadOutputButton" class="secondary-button disabled" href="#" download>下载输出</a>
         </div>
+        <div id="conversionProgress" class="conversion-progress" data-state="idle" aria-live="polite">
+          <div class="progress-meta">
+            <span id="progressStage">待命</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+        </div>
       </header>
 
       <div class="workspace">

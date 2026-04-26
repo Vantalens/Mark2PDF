@@ -30,6 +30,10 @@ const refreshPreviewButton = document.getElementById("refreshPreviewButton");
 const transformButton = document.getElementById("transformButton");
 const cancelTransformButton = document.getElementById("cancelTransformButton");
 const downloadOutputButton = document.getElementById("downloadOutputButton");
+const conversionProgress = document.getElementById("conversionProgress");
+const progressStage = document.getElementById("progressStage");
+const progressPercent = document.getElementById("progressPercent");
+const progressFill = document.getElementById("progressFill");
 const loadSampleButton = document.getElementById("loadSampleButton");
 const wordCountEl = document.getElementById("wordCount");
 const lineCountEl = document.getElementById("lineCount");
@@ -68,6 +72,18 @@ let lastErrorDiagnostics = null;
 
 const PREVIEW_DEBOUNCE_MS = 300;
 const LARGE_DOC_THRESHOLD = 12000;
+const PROGRESS_STAGE_LABELS = {
+  idle: "待命",
+  read: "读取输入",
+  parse: "解析内容",
+  validate: "校验结构",
+  convert: "转换格式",
+  render: "渲染输出",
+  package: "打包下载",
+  complete: "转换完成",
+  canceled: "已取消",
+  error: "转换失败",
+};
 
 function setStatus(message, type = "info") {
   statusText.textContent = message;
@@ -87,6 +103,15 @@ function setFileMeta(message) {
 
 function setOutputMeta(message) {
   outputMeta.textContent = message;
+}
+
+function updateConversionProgress({ stage = "idle", progress = 0, message = "" } = {}) {
+  const normalizedProgress = Math.max(0, Math.min(1, Number(progress) || 0));
+  const percent = Math.round(normalizedProgress * 100);
+  conversionProgress.dataset.state = stage;
+  progressStage.textContent = message || PROGRESS_STAGE_LABELS[stage] || stage;
+  progressPercent.textContent = `${percent}%`;
+  progressFill.style.width = `${percent}%`;
 }
 
 function sanitizeErrorDiagnostics(errorLike) {
@@ -156,10 +181,24 @@ function revokeOutputUrl() {
   }
 }
 
+function resetGeneratedOutput(metaMessage = "尚未生成") {
+  revokeOutputUrl();
+  currentPrintHtml = "";
+  textOutputPreview.textContent = "";
+  pdfPreview.removeAttribute("src");
+  downloadOutputButton.textContent = "下载输出";
+  updateOutputPreviewVisibility(false);
+  updateDownloadState(false);
+  setOutputMeta(metaMessage);
+}
+
 function setTransformBusy(isBusy) {
   transformButton.disabled = isBusy;
   cancelTransformButton.disabled = !isBusy;
   cancelTransformButton.hidden = !isBusy;
+  if (!isBusy && conversionProgress.dataset.state !== "error" && conversionProgress.dataset.state !== "canceled") {
+    updateConversionProgress({ stage: "idle", progress: 0 });
+  }
 }
 
 function updateDownloadState(enabled) {
@@ -263,12 +302,7 @@ async function handleInputText(rawContent, fileName = currentFileName) {
   currentFileName = fileName;
   inputContent.value = rawContent;
   setFileMeta(fileName);
-  updateDownloadState(false);
-  setOutputMeta("尚未生成");
-  revokeOutputUrl();
-  currentPrintHtml = "";
-  pdfPreview.removeAttribute("src");
-  textOutputPreview.textContent = "";
+  resetGeneratedOutput();
   lastRenderedPayload = "";
   clearErrorDetails();
   updateWordCount();
@@ -345,6 +379,7 @@ function convertWithWorker(payload) {
         return;
       }
       if (message.type === "progress") {
+        updateConversionProgress(message);
         setStatus(message.message || `转换进度 ${Math.round((message.progress || 0) * 100)}%`);
         return;
       }
@@ -376,7 +411,9 @@ async function transformContent() {
   const to = toFormatSelect.value;
 
   setTransformBusy(true);
+  updateConversionProgress({ stage: "read", progress: 0.05, message: "准备读取输入" });
   setStatus("正在浏览器端执行转换...");
+  resetGeneratedOutput("正在生成");
   clearErrorDetails();
 
   try {
@@ -396,6 +433,7 @@ async function transformContent() {
       updateOutputPreviewVisibility(true);
       updateDownloadState(true);
       setOutputMeta("已生成浏览器打印页面");
+      updateConversionProgress({ stage: "complete", progress: 1, message: "转换完成" });
       setStatus("已生成打印页面，可用浏览器另存为 PDF", "success");
       return;
     }
@@ -409,12 +447,15 @@ async function transformContent() {
     updateOutputPreviewVisibility(false);
     updateDownloadState(true);
     setOutputMeta(`文本输出已生成 · ${result.data.length} chars`);
+    updateConversionProgress({ stage: "complete", progress: 1, message: "转换完成" });
     setStatus("浏览器端转换成功", "success");
   } catch (error) {
     if (error.message === "转换已取消") {
+      updateConversionProgress({ stage: "canceled", progress: 0, message: "转换已取消" });
       setStatus("转换已取消", "info");
     } else {
       renderErrorDetails(error);
+      updateConversionProgress({ stage: "error", progress: 0, message: "转换失败" });
       setStatus(error.message, "error");
     }
   } finally {
@@ -522,8 +563,10 @@ cancelTransformButton.addEventListener("click", () => {
   const { worker, reject } = activeConversion;
   activeConversion = null;
   worker.terminate();
+  resetGeneratedOutput("已取消，未保留输出");
   reject(new Error("转换已取消"));
   setTransformBusy(false);
+  updateConversionProgress({ stage: "canceled", progress: 0, message: "转换已取消" });
   setStatus("转换已取消", "info");
 });
 openPdfPreviewButton.addEventListener("click", printCurrentPdf);
@@ -545,12 +588,8 @@ function bootstrapInitialSample() {
   currentFileName = "sample.md";
   inputContent.value = sampleMarkdown;
   setFileMeta("sample.md");
-  setOutputMeta("尚未生成");
   updateOutputPreviewVisibility(false);
-  updateDownloadState(false);
-  revokeOutputUrl();
-  pdfPreview.removeAttribute("src");
-  textOutputPreview.textContent = "";
+  resetGeneratedOutput();
   lastRenderedPayload = "";
   updateWordCount();
   renderPreview();
@@ -562,3 +601,4 @@ bootstrapInitialSample();
 autoPreviewCheckbox.checked = false;
 syncPdfPaperControl();
 openPdfPreviewButton.disabled = true;
+updateConversionProgress({ stage: "idle", progress: 0 });
