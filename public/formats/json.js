@@ -1,4 +1,5 @@
 import { assertValidDocumentModel } from "../core/document-schema.js";
+import { ConversionError } from "../core/conversion-error.js";
 import { createCodeBlock, createDocumentModel, createHeading } from "../core/document-model.js";
 import { getPlainText } from "../core/document-model.js";
 import { writeMarkdown } from "./markdown.js";
@@ -8,7 +9,12 @@ export function readJson({ content, title = "document", format = "json" }) {
   try {
     parsed = JSON.parse(String(content ?? ""));
   } catch (error) {
-    throw new Error(`JSON 解析失败: ${error.message}`);
+    throw new ConversionError(`JSON 解析失败: ${error.message}`, {
+      category: "parse",
+      code: "JSON_PARSE_ERROR",
+      format,
+      cause: error,
+    });
   }
 
   return createDocumentModel({

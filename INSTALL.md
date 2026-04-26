@@ -2,6 +2,8 @@
 
 Trans2Former 现在定位为浏览器 Web 应用，不再依赖 Electron，也不再发布桌面 exe 壳。
 
+核心转换默认在本机浏览器中执行，不上传用户文件。后期 GUI/PWA/桌面外壳也必须保持本地优先路线。
+
 ## 系统要求
 
 - Node.js 18 或更高版本
@@ -23,11 +25,31 @@ http://localhost:3000
 
 当前 Node.js 服务只负责承载 Web 页面，转换逻辑在浏览器端执行。后续目标是支持静态部署。
 
+浏览器自检页：
+
+```text
+http://localhost:3000/smoke-test.html
+```
+
+## 验证
+
+```bash
+npm test
+```
+
+当前测试会检查：
+
+- 浏览器端转换核心
+- 固定转换快照
+- 静态页面和浏览器自检入口
+- 本地安全策略，防止默认前端引入上传、遥测或持久化用户内容
+
 ## 当前限制
 
 1. PDF 当前使用浏览器打印/另存为 PDF。
 2. EPUB、DOCX、PPTX、PNG 的浏览器端互转尚未实现。
 3. 不需要安装 Office、LibreOffice、Pandoc、Playwright 或桌面壳程序。
+4. 远程 OCR、转写、AI 增强尚未进入默认路径；未来也必须显式 opt-in。
 
 ## 升级
 

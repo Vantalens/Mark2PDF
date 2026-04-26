@@ -115,3 +115,9 @@ import { validateDocumentModel, assertValidDocumentModel } from "./core/document
 
 - `validateDocumentModel(model)` 返回 `{ ok, errors }`。
 - `assertValidDocumentModel(model)` 在失败时抛出错误。
+
+机器可读 JSON Schema：
+
+```text
+docs/document-model.schema.json
+```

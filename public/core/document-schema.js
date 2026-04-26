@@ -1,3 +1,5 @@
+import { ConversionError } from "./conversion-error.js";
+
 const VALID_BLOCK_TYPES = new Set(["heading", "paragraph", "list", "code", "table", "quote", "image", "asset", "raw"]);
 
 function isObject(value) {
@@ -90,7 +92,11 @@ export function validateDocumentModel(model) {
 export function assertValidDocumentModel(model) {
   const result = validateDocumentModel(model);
   if (!result.ok) {
-    throw new Error(`DocumentModel schema validation failed: ${result.errors.join("; ")}`);
+    throw new ConversionError(`DocumentModel schema validation failed: ${result.errors.join("; ")}`, {
+      category: "validate",
+      code: "DOCUMENT_MODEL_SCHEMA_ERROR",
+      details: { errors: result.errors },
+    });
   }
   return model;
 }

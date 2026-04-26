@@ -2,6 +2,30 @@
 
 所有值得注意的项目变更将在此文件中记录。
 
+## [Unreleased]
+
+### 新增
+
+- 新增 `samples/` 样例集，覆盖 Markdown、HTML、TXT、JSON、CSV、XML、PNG 当前输入格式。
+- 新增机器可读 `docs/document-model.schema.json`。
+- 新增转换快照测试和 `tests/snapshots/conversions/`。
+- 新增浏览器自检页 `/smoke-test.html`。
+- 新增本地安全策略 `docs/SECURITY_POLICY.md` 和 local security test。
+- 新增结构化 `ConversionError`，覆盖 parse / validate / convert / render / download 分类。
+- 新增错误详情面板和脱敏诊断复制能力。
+- 新增市场调研文档 `docs/MARKET_RESEARCH_2026-04-26.md`。
+
+### 变更
+
+- `npm test` 现在运行核心 smoke、转换快照、浏览器自检静态服务检查和本地安全 smoke test。
+- `DEVELOPMENT_TASKS.md` 已重排为市场路径、产品壁垒、数据安全、GUI/PWA/超广格式路线。
+- Worker 错误现在透传结构化错误字段，便于 UI 渲染。
+
+### 安全
+
+- 明确默认 `local-only`，核心转换不上传用户文件、不遥测、不留存文档内容。
+- 本地安全测试会阻止默认前端引入上传、遥测、WebSocket、持久化用户内容等路径。
+
 ## [2.1.0] - 2026-04-25
 
 ### 新增

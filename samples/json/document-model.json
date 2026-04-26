@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "trans2former.document.v1",
+  "title": "DocumentModel as JSON",
+  "blocks": [
+    { "type": "heading", "level": 1, "text": "Document JSON" },
+    { "type": "paragraph", "text": "Stored as source JSON for conversion tests." }
+  ]
+}

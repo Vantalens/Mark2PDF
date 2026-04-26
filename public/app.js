@@ -5,6 +5,7 @@ import {
   getOutputExtension,
   renderPreviewHtml,
 } from "./browser-transformer.js";
+import { normalizeConversionError } from "./core/conversion-error.js";
 
 const inputContent = document.getElementById("inputContent");
 const fileInput = document.getElementById("fileInput");
@@ -15,6 +16,14 @@ const htmlPreview = document.getElementById("htmlPreview");
 const pdfPreview = document.getElementById("pdfPreview");
 const textOutputPreview = document.getElementById("textOutputPreview");
 const openPdfPreviewButton = document.getElementById("openPdfPreviewButton");
+const errorDetailsPanel = document.getElementById("errorDetailsPanel");
+const errorDetailsSummary = document.getElementById("errorDetailsSummary");
+const errorCategory = document.getElementById("errorCategory");
+const errorCode = document.getElementById("errorCode");
+const errorFormat = document.getElementById("errorFormat");
+const errorMessageText = document.getElementById("errorMessageText");
+const errorDebugText = document.getElementById("errorDebugText");
+const copyErrorDiagnosticsButton = document.getElementById("copyErrorDiagnosticsButton");
 const outputMeta = document.getElementById("outputMeta");
 const autoPreviewCheckbox = document.getElementById("autoPreviewCheckbox");
 const refreshPreviewButton = document.getElementById("refreshPreviewButton");
@@ -55,6 +64,7 @@ let lastOutputIsPdf = false;
 let convertWorker = null;
 let convertJobSeq = 0;
 let activeConversion = null;
+let lastErrorDiagnostics = null;
 
 const PREVIEW_DEBOUNCE_MS = 300;
 const LARGE_DOC_THRESHOLD = 12000;
@@ -77,6 +87,60 @@ function setFileMeta(message) {
 
 function setOutputMeta(message) {
   outputMeta.textContent = message;
+}
+
+function sanitizeErrorDiagnostics(errorLike) {
+  const normalized = normalizeConversionError(errorLike);
+  return {
+    category: normalized.category,
+    code: normalized.code,
+    format: normalized.format,
+    message: normalized.message,
+    warnings: Array.isArray(normalized.details?.warnings) ? normalized.details.warnings : [],
+  };
+}
+
+function clearErrorDetails() {
+  lastErrorDiagnostics = null;
+  errorDetailsPanel.hidden = true;
+  errorDetailsSummary.textContent = "等待转换";
+  errorCategory.textContent = "-";
+  errorCode.textContent = "-";
+  errorFormat.textContent = "-";
+  errorMessageText.textContent = "";
+  errorDebugText.textContent = "";
+}
+
+function renderErrorDetails(errorLike) {
+  const normalized = normalizeConversionError(errorLike);
+  const diagnostics = sanitizeErrorDiagnostics(normalized);
+  lastErrorDiagnostics = diagnostics;
+
+  errorDetailsPanel.hidden = false;
+  errorDetailsSummary.textContent = diagnostics.message || "转换失败";
+  errorCategory.textContent = diagnostics.category || "-";
+  errorCode.textContent = diagnostics.code || "-";
+  errorFormat.textContent = diagnostics.format || "-";
+  errorMessageText.textContent = diagnostics.message || "转换失败";
+  errorDebugText.textContent = JSON.stringify({
+    ...diagnostics,
+    details: normalized.details || {},
+  }, null, 2);
+}
+
+async function copyErrorDiagnostics() {
+  if (!lastErrorDiagnostics) {
+    setStatus("没有可复制的诊断信息", "info");
+    return;
+  }
+  const text = JSON.stringify(lastErrorDiagnostics, null, 2);
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    setStatus("已复制脱敏诊断信息", "success");
+    return;
+  }
+  errorDebugText.textContent = text;
+  setStatus("浏览器不支持剪贴板写入，已在高级调试信息中显示脱敏诊断", "info");
 }
 
 function updateWordCount() {
@@ -206,6 +270,7 @@ async function handleInputText(rawContent, fileName = currentFileName) {
   pdfPreview.removeAttribute("src");
   textOutputPreview.textContent = "";
   lastRenderedPayload = "";
+  clearErrorDetails();
   updateWordCount();
   renderPreview();
 }
@@ -288,7 +353,9 @@ function convertWithWorker(payload) {
         resolve(message.result);
         return;
       }
-      reject(new Error(message.error?.message || "转换失败"));
+      const workerError = new Error(message.error?.message || "转换失败");
+      Object.assign(workerError, message.error || {});
+      reject(workerError);
     }
 
     activeConversion = { id, worker, reject };
@@ -310,6 +377,7 @@ async function transformContent() {
 
   setTransformBusy(true);
   setStatus("正在浏览器端执行转换...");
+  clearErrorDetails();
 
   try {
     const title = getBaseName(currentFileName);
@@ -346,6 +414,7 @@ async function transformContent() {
     if (error.message === "转换已取消") {
       setStatus("转换已取消", "info");
     } else {
+      renderErrorDetails(error);
       setStatus(error.message, "error");
     }
   } finally {
@@ -443,6 +512,9 @@ dropZone.addEventListener("drop", (event) => {
 });
 
 transformButton.addEventListener("click", transformContent);
+copyErrorDiagnosticsButton.addEventListener("click", () => {
+  copyErrorDiagnostics().catch((error) => setStatus(error.message, "error"));
+});
 cancelTransformButton.addEventListener("click", () => {
   if (!activeConversion) {
     return;

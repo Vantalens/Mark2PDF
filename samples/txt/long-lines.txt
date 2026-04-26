@@ -1,0 +1,5 @@
+Long Text Sample
+
+This paragraph is intentionally longer than the others so the plain text reader can keep natural sentences together without relying on Markdown syntax.
+
+Another paragraph follows after a blank line.

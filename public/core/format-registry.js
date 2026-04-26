@@ -1,3 +1,5 @@
+import { ConversionError } from "./conversion-error.js";
+
 const FORMAT_ALIASES = {
   markdown: "md",
   mdown: "md",
@@ -73,7 +75,11 @@ export class ConverterRegistry {
     const fromFormat = normalizeFormat(from);
     const reader = this.readers.get(fromFormat);
     if (!reader) {
-      throw new Error(`输入格式不支持: ${fromFormat || "(empty)"}`);
+      throw new ConversionError(`输入格式不支持: ${fromFormat || "(empty)"}`, {
+        category: "convert",
+        code: "UNSUPPORTED_INPUT_FORMAT",
+        format: fromFormat,
+      });
     }
     return reader({ content, title, fileName, format: fromFormat });
   }
@@ -82,7 +88,11 @@ export class ConverterRegistry {
     const toFormat = normalizeFormat(to);
     const writer = this.writers.get(toFormat);
     if (!writer) {
-      throw new Error(`输出格式不支持: ${toFormat || "(empty)"}`);
+      throw new ConversionError(`输出格式不支持: ${toFormat || "(empty)"}`, {
+        category: "convert",
+        code: "UNSUPPORTED_OUTPUT_FORMAT",
+        format: toFormat,
+      });
     }
     return writer({ model, title, format: toFormat });
   }

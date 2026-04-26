@@ -1,0 +1,8 @@
+{
+  "title": "JSON Object",
+  "language": "zh-CN",
+  "items": ["alpha", "beta"],
+  "metadata": {
+    "nested": true
+  }
+}

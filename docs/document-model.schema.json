@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vantalens.github.io/trans2former/document-model.schema.json",
+  "title": "Trans2Former DocumentModel",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "title", "sourceFormat", "blocks", "assets", "metadata"],
+  "properties": {
+    "schemaVersion": {
+      "const": "trans2former.document.v1"
+    },
+    "title": {
+      "type": "string"
+    },
+    "sourceFormat": {
+      "type": "string"
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "level", "text"],
+            "properties": {
+              "type": { "const": "heading" },
+              "level": { "type": "integer", "minimum": 1, "maximum": 6 },
+              "text": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "text"],
+            "properties": {
+              "type": { "const": "paragraph" },
+              "text": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "ordered", "items"],
+            "properties": {
+              "type": { "const": "list" },
+              "ordered": { "type": "boolean" },
+              "items": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "language", "code"],
+            "properties": {
+              "type": { "const": "code" },
+              "language": { "type": "string" },
+              "code": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "headers", "rows"],
+            "properties": {
+              "type": { "const": "table" },
+              "headers": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "text"],
+            "properties": {
+              "type": { "const": "quote" },
+              "text": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "src", "alt", "title"],
+            "properties": {
+              "type": { "const": "image" },
+              "src": { "type": "string" },
+              "alt": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "assetId", "alt", "title"],
+            "properties": {
+              "type": { "const": "asset" },
+              "assetId": { "type": "string" },
+              "alt": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "format", "content"],
+            "properties": {
+              "type": { "const": "raw" },
+              "format": { "type": "string" },
+              "content": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "mime", "data", "size", "role"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "mime": { "type": "string" },
+          "data": { "type": "string" },
+          "size": { "type": "number" },
+          "role": { "type": "string" }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { ConversionError } from "../core/conversion-error.js";
 import { createDocumentModel, createParagraph, createRawBlock } from "../core/document-model.js";
 import { escapeHtml, stripHtml } from "./text-utils.js";
 
@@ -29,7 +30,11 @@ export function readXml({ content, title = "xml", format = "xml" }) {
   const doc = new DOMParser().parseFromString(source, "application/xml");
   const parserError = doc.querySelector("parsererror");
   if (parserError) {
-    throw new Error(`XML 解析失败: ${parserError.textContent.trim()}`);
+    throw new ConversionError(`XML 解析失败: ${parserError.textContent.trim()}`, {
+      category: "parse",
+      code: "XML_PARSE_ERROR",
+      format,
+    });
   }
   const text = walkXmlNode(doc.documentElement).join("\n");
   return createDocumentModel({

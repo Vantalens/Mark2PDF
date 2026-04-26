@@ -100,6 +100,34 @@
           </div>
 
           <div class="output-preview-wrapper">
+            <section id="errorDetailsPanel" class="error-details-panel" hidden aria-live="polite">
+              <div class="error-details-header">
+                <div>
+                  <strong>错误详情</strong>
+                  <span id="errorDetailsSummary">等待转换</span>
+                </div>
+                <button id="copyErrorDiagnosticsButton" class="ghost-button small" type="button">复制诊断</button>
+              </div>
+              <dl class="error-details-grid">
+                <div>
+                  <dt>分类</dt>
+                  <dd id="errorCategory">-</dd>
+                </div>
+                <div>
+                  <dt>代码</dt>
+                  <dd id="errorCode">-</dd>
+                </div>
+                <div>
+                  <dt>格式</dt>
+                  <dd id="errorFormat">-</dd>
+                </div>
+              </dl>
+              <pre id="errorMessageText" class="error-message-text"></pre>
+              <details class="error-raw-details">
+                <summary>高级调试信息</summary>
+                <pre id="errorDebugText"></pre>
+              </details>
+            </section>
             <button id="openPdfPreviewButton" class="ghost-button" type="button" style="margin-bottom: 12px; width: 100%;">
               浏览器打印 / 另存为 PDF
             </button>

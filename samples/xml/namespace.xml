@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doc:document xmlns:doc="https://trans2former.example/schema">
+  <doc:title>Namespaced XML</doc:title>
+  <doc:body>Namespace content</doc:body>
+</doc:document>
