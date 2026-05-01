@@ -1,6 +1,6 @@
 # 贡献指南
 
-Trans2Former 当前是浏览器优先的 Web 应用。贡献代码时请保持这个方向：不要新增 Electron、Playwright、Office、LibreOffice、Pandoc 或其他本地转换软件作为运行依赖。
+Trans2Former 当前产品方向是 Tauri 桌面壳 + Web-GUI 的本地格式转换工作台。当前仓库仍用浏览器 Web 应用验证转换核心和前端工作台；贡献代码时请保持 Web-GUI、TypeScript core、Worker/WASM 和本地插件系统方向，不要新增 Electron、Playwright、Office、LibreOffice、Pandoc 或云端转换服务作为运行依赖。
 
 核心底线：用户数据本地处理、零上传。不要上传文档、文件名、文档片段、转换结果、错误详情或用户编辑内容；不要接入云端文档处理、远程转换、远程 OCR、远程转写或远程 AI 增强。
 
@@ -23,10 +23,12 @@ http://localhost:3000
 - [DEVELOPMENT_TASKS.md](DEVELOPMENT_TASKS.md)：当前任务看板，只放可执行任务和阶段状态。
 - [docs/README.md](docs/README.md)：开发文档总目录。
 - [docs/PRODUCT_STRATEGY.md](docs/PRODUCT_STRATEGY.md)：产品原则、市场路线和安全底线。
+- [docs/DESKTOP_APP_ARCHITECTURE.md](docs/DESKTOP_APP_ARCHITECTURE.md)：Tauri 桌面壳、Web-GUI、版本控制和插件隔离架构。
 - [docs/FORMAT_ROADMAP.md](docs/FORMAT_ROADMAP.md)：格式覆盖矩阵和新增格式准入规则。
 - [docs/BASIC_FORMAT_QUALITY.md](docs/BASIC_FORMAT_QUALITY.md)：P0 基础格式质量、before/after 和降级说明。
 - [docs/SECURITY_POLICY.md](docs/SECURITY_POLICY.md)：本地优先、零云端处理和插件隔离规则。
 - [docs/PLUGIN_SECURITY_MODEL.md](docs/PLUGIN_SECURITY_MODEL.md)：插件 manifest、权限隔离、processing no-network 和完整性校验。
+- [docs/PLUGIN_DISTRIBUTION.md](docs/PLUGIN_DISTRIBUTION.md)：GitHub Releases 插件分发、下载板块和更新板块规则。
 - [docs/RESOURCE_BUDGET.md](docs/RESOURCE_BUDGET.md)：核心包体积和依赖预算。
 - [docs/PROJECT_ASSESSMENT_2026-04-30.md](docs/PROJECT_ASSESSMENT_2026-04-30.md)：项目评估和修复记录。
 - [docs/RELEASE_PREP.md](docs/RELEASE_PREP.md)：GitHub release 准备流程。
@@ -53,7 +55,9 @@ src/
 - 新增格式时，先设计中间模型，再做输入/输出适配器。
 - 新增高频轻量格式时，可评估进入 `format-basic`，但必须通过体积、安全和质量门禁，保证免下载体验不破坏资源预算。
 - 新增重格式或可选能力时，默认按模块插件处理；用户需要时再下载或加载，不能进入核心包默认路径。
+- OFD 是战略攻坚格式，不是边缘研究项；新增 OFD 相关改动必须同步 capability levels、公开样例、质量报告、warnings 和 processing no-network 验证。
 - 新增插件能力时，必须通过 `public/core/plugin-policy.js` 和 `scripts/plugin-security-test.js`，不得绕过 manifest、权限、完整性和 no-network policy。
+- 插件下载和更新默认通过 GitHub Releases；应用内只能在 install mode 下访问插件 release，不得在文档处理阶段自动联网更新。
 - 可以进行代码水平拆分，但必须保持 `input -> DocumentModel -> output` 语义一致，拆分前后快照不能退化。
 - 处理超大单文件时，优先设计动态分块转换与结构化合并，不允许为了分块速度牺牲最终转换效果。
 - 新增 OOXML/ZIP 容器能力时，不得把 ZIP 宣传为用户-facing 转换格式；ZIP 只作为 DOCX/PPTX/XLSX/EPUB 基础设施。

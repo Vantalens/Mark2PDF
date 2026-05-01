@@ -1,8 +1,8 @@
 # 安装与运行
 
-Trans2Former 现在定位为浏览器 Web 应用，不再依赖 Electron，也不再发布桌面 exe 壳。
+Trans2Former 现在定位为 Tauri 桌面壳 + Web-GUI 的本地格式转换工作台。当前仓库仍以浏览器 Web 应用运行，用于验证转换核心、前端工作台和本地安全策略。
 
-核心转换默认在本机浏览器中执行，不上传用户文件。后期 GUI/PWA/桌面外壳也必须保持本地优先路线。
+核心转换默认在本机浏览器中执行，不上传用户文件。后续 Tauri 桌面版本必须复用 Web-GUI 和转换核心，并保持本地优先路线。
 
 ## 系统要求
 
@@ -23,7 +23,7 @@ npm start
 http://localhost:3000
 ```
 
-当前 Node.js 服务只负责承载 Web 页面，转换逻辑在浏览器端执行。后续目标是支持静态部署。
+当前 Node.js 服务只负责承载 Web 页面，转换逻辑在浏览器端执行。后续目标是将这套 Web-GUI 和转换核心迁移进 Tauri 桌面壳。
 
 浏览器自检页：
 
@@ -50,9 +50,11 @@ npm test
 - 文档总目录：[docs/README.md](docs/README.md)
 - 当前任务看板：[DEVELOPMENT_TASKS.md](DEVELOPMENT_TASKS.md)
 - 产品策略：[docs/PRODUCT_STRATEGY.md](docs/PRODUCT_STRATEGY.md)
+- 桌面架构：[docs/DESKTOP_APP_ARCHITECTURE.md](docs/DESKTOP_APP_ARCHITECTURE.md)
 - 格式路线：[docs/FORMAT_ROADMAP.md](docs/FORMAT_ROADMAP.md)
 - 基础格式质量：[docs/BASIC_FORMAT_QUALITY.md](docs/BASIC_FORMAT_QUALITY.md)
 - 插件安全模型：[docs/PLUGIN_SECURITY_MODEL.md](docs/PLUGIN_SECURITY_MODEL.md)
+- 插件分发规则：[docs/PLUGIN_DISTRIBUTION.md](docs/PLUGIN_DISTRIBUTION.md)
 - 开发规范：[docs/development-standards/00_README.md](docs/development-standards/00_README.md)
 - 成本与资源治理：[docs/development-standards/07_COST_AND_RESOURCE_GOVERNANCE.md](docs/development-standards/07_COST_AND_RESOURCE_GOVERNANCE.md)
 - 发布准备：[docs/RELEASE_PREP.md](docs/RELEASE_PREP.md)
@@ -73,10 +75,10 @@ release/trans2former-2.0.0/
 
 ## 当前限制
 
-1. PDF 当前使用浏览器打印/另存为 PDF。
-2. DOCX、XLSX、EPUB、PDF text extraction、PPTX input 已完成 P3；OFD 的浏览器端转换尚未实现。
+1. PDF 当前支持程序化二进制输出，不再依赖浏览器打印作为主要路径。
+2. DOCX、XLSX、EPUB、PDF text extraction、PPTX input 已完成 P3；DOCX/PDF/PNG/JPEG output 已完成 P4 基线；OFD 已升级为 P5 战略攻坚格式，当前 release 尚未发布 OFD 可用转换功能。
 3. 不需要安装 Office、LibreOffice、Pandoc、Playwright 或桌面壳程序。
-4. 不提供远程 OCR、远程转写、远程 AI 增强或云端文档处理；本地模型只可能作为远期可删除插件。
+4. 不提供远程 OCR、远程转写、远程 AI 增强或云端文档处理；本地模型和 OFD 高保真渲染只能作为可删除、可禁用、可回滚的本地插件。
 
 ## 升级
 
@@ -105,4 +107,4 @@ http://localhost:3000
 
 ### PDF 如何保存
 
-选择输出 PDF 后，点击“浏览器打印 / 另存为 PDF”，在浏览器打印窗口中选择“保存为 PDF”。
+选择输出 PDF 后，直接点击“下载二进制输出”获取 `.pdf` 文件；也可以点击“打开 PDF 预览”在浏览器中查看。

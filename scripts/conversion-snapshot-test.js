@@ -53,8 +53,8 @@ const ERROR_CASES = [
   },
   {
     name: "unsupported output format reports capability error",
-    payload: { content: "# Title", from: "md", to: "docx", title: "unsupported.md", fileName: "unsupported.md" },
-    messagePattern: /输出格式不支持: docx/,
+    payload: { content: "# Title", from: "md", to: "xlsx", title: "unsupported.md", fileName: "unsupported.md" },
+    messagePattern: /输出格式不支持: xlsx/,
   },
 ];
 

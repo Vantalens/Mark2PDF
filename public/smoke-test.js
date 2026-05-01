@@ -68,7 +68,8 @@ async function runBrowserSmokeTest() {
     title: sampleFile.name,
     fileName: sampleFile.name,
   });
-  assert(pdfResult.type === "print", "PDF 过渡输出走浏览器打印路径");
+  assert(pdfResult.type === "binary", "PDF 输出走程序化二进制路径");
+  assert(pdfResult.data.startsWith("data:application/pdf;base64,"), "PDF 输出为本地 data URL");
 }
 
 try {

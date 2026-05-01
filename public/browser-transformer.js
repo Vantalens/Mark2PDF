@@ -2,10 +2,13 @@ import { ConverterRegistry, normalizeFormat } from "./core/format-registry.js";
 import { readCsv, writeCsv } from "./formats/csv.js";
 import { readDocx } from "./formats/docx.js";
 import { readEpub } from "./formats/epub.js";
-import { readHtml, writeHtml, writePdfPrintHtml } from "./formats/html.js";
+import { readHtml, writeHtml } from "./formats/html.js";
+import { writeDocx } from "./formats/docx-output.js";
+import { writePng, writeJpeg } from "./formats/image-output.js";
 import { readJson, writeJson } from "./formats/json.js";
 import { modelToBodyHtml, readMarkdown, writeMarkdown } from "./formats/markdown.js";
 import { readPdf } from "./formats/pdf.js";
+import { writePdfBinary } from "./formats/pdf-output.js";
 import { readPng } from "./formats/png.js";
 import { readText, writeText } from "./formats/plain-text.js";
 import { readPptx } from "./formats/pptx.js";
@@ -84,14 +87,16 @@ registry.registerFormat("xml", {
 
 registry.registerFormat("png", {
   read: readPng,
+  write: writePng,
   extension: "png",
   mime: "image/png",
   label: "PNG",
-  note: "当前支持作为输入图片资源导入 DocumentModel",
+  note: "P4：支持作为输入图片资源导入 DocumentModel，并可渲染 DocumentModel 为 PNG",
 });
 
 registry.registerFormat("docx", {
   read: readDocx,
+  write: writeDocx,
   extension: "docx",
   mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   label: "DOCX",
@@ -124,11 +129,19 @@ registry.registerFormat("pptx", {
 
 registry.registerFormat("pdf", {
   read: readPdf,
-  write: writePdfPrintHtml,
-  extension: "html",
-  mime: "text/html;charset=utf-8",
+  write: writePdfBinary,
+  extension: "pdf",
+  mime: "application/pdf",
   label: "PDF",
-  note: "当前通过浏览器打印/另存为 PDF 输出",
+  note: "P4：文本型 PDF 输入和程序化 PDF 二进制输出",
+});
+
+registry.registerFormat("jpeg", {
+  write: writeJpeg,
+  extension: "jpg",
+  mime: "image/jpeg",
+  label: "JPEG",
+  note: "P4：渲染输出图片路径，适合预览封面和轻量分享",
 });
 
 export function listFormats() {

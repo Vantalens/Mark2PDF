@@ -20,8 +20,8 @@ import { readZipEntries } from "../public/core/zip-container.js";
 
 const SAMPLE_ROOT = path.resolve("samples");
 const INPUT_FORMATS = ["md", "html", "txt", "json", "csv", "xml", "png", "docx", "xlsx", "epub", "pptx", "pdf"];
-const OUTPUT_FORMATS = ["md", "html", "txt", "json", "csv", "xml", "pdf"];
-const TEXT_OUTPUT_FORMATS = ["md", "html", "txt", "json", "xml", "pdf"];
+const OUTPUT_FORMATS = ["md", "html", "txt", "json", "csv", "xml", "png", "docx", "pdf", "jpeg"];
+const TEXT_OUTPUT_FORMATS = ["md", "html", "txt", "json", "xml"];
 const EXPECTED_BLOCK_TYPES = ["heading", "paragraph", "list", "code", "table", "quote", "image", "asset", "raw"];
 
 const SAMPLE_MATRIX = {
@@ -84,6 +84,11 @@ function concatBytes(chunks) {
     offset += chunk.length;
   }
   return output;
+}
+
+function dataUrlToBytes(dataUrl) {
+  const base64 = String(dataUrl || "").match(/^data:[^;]+;base64,(.+)$/)?.[1] || "";
+  return new Uint8Array(Buffer.from(base64, "base64"));
 }
 
 function createStoredZip(entries) {
@@ -313,9 +318,9 @@ function assertValidOutput(result, toFormat, label) {
   assert.equal(result.format, toFormat, `${label} should output ${toFormat}`);
   assert.equal(typeof result.data, "string", `${label} should return string data`);
   assert.equal(result.data.trim().length > 0, true, `${label} should not return empty data`);
-  if (toFormat === "pdf") {
-    assert.equal(result.type, "print", `${label} should use print output for PDF`);
-    assert.equal(result.data.includes("@media print"), true, `${label} PDF-print output should include print CSS`);
+  if (["png", "docx", "pdf", "jpeg"].includes(toFormat)) {
+    assert.equal(result.type, "binary", `${label} should use binary output`);
+    assert.equal(result.data.startsWith("data:"), true, `${label} should return a data URL`);
   } else {
     assert.equal(result.type, "text", `${label} should use text output`);
   }
@@ -437,6 +442,35 @@ test("PDF text extraction MVP reads literal text operators", () => {
   assert.equal(model.blocks.some((block) => block.type === "paragraph" && block.text.includes("Hello PDF")), true);
 });
 
+test("P4 DOCX output generates a local OOXML package from DocumentModel", () => {
+  const output = convertContent({ content: "# Export Title\n\nHello **DOCX**.\n\n| Name | Value |\n| --- | --- |\n| A | 1 |", from: "md", to: "docx", title: "export.docx" });
+  assertValidOutput(output, "docx", "markdown to docx");
+  assert.equal(output.mime, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  const zip = readZipEntries(output.data);
+  assert.equal(zip.has("word/document.xml"), true);
+  assert.equal(zip.getText("word/document.xml").includes("Export Title"), true);
+  assert.equal(zip.getText("word/document.xml").includes("<w:tbl>"), true);
+});
+
+test("P4 programmatic PDF output returns a real PDF data URL instead of print HTML", () => {
+  const output = convertContent({ content: "# PDF Export\n\nHello PDF binary.", from: "md", to: "pdf", title: "export.pdf" });
+  assertValidOutput(output, "pdf", "markdown to pdf");
+  assert.equal(output.mime, "application/pdf");
+  const bytes = dataUrlToBytes(output.data);
+  assert.equal(new TextDecoder().decode(bytes.slice(0, 5)), "%PDF-");
+  assert.equal(output.data.includes("@media print"), false);
+});
+
+test("P4 PNG and JPEG rendering outputs produce binary image data URLs", () => {
+  const png = convertContent({ content: "# Image Export\n\nHello image.", from: "md", to: "png", title: "export.png" });
+  assertValidOutput(png, "png", "markdown to png");
+  assert.deepEqual([...dataUrlToBytes(png.data).slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+
+  const jpeg = convertContent({ content: "# Image Export\n\nHello image.", from: "md", to: "jpeg", title: "export.jpeg" });
+  assertValidOutput(jpeg, "jpeg", "markdown to jpeg");
+  assert.deepEqual([...dataUrlToBytes(jpeg.data).slice(0, 3)], [0xff, 0xd8, 0xff]);
+});
+
 test("PPTX input MVP extracts slide titles and body text", () => {
   const pptxBytes = createPptxFixture();
   const model = toDocumentModel(pptxBytes, "pptx", "fixture.pptx");
@@ -546,11 +580,11 @@ test("ConversionError normalizes parse, validate, and convert failures", () => {
   );
 
   assert.throws(
-    () => convertContent({ content: "# Title", from: "md", to: "docx", title: "unsupported" }),
+    () => convertContent({ content: "# Title", from: "md", to: "xlsx", title: "unsupported" }),
     (error) => error instanceof ConversionError
       && error.category === "convert"
       && error.code === "UNSUPPORTED_OUTPUT_FORMAT"
-      && error.format === "docx"
+      && error.format === "xlsx"
   );
 
   const normalized = normalizeConversionError(new Error("plain failure"), {

@@ -4,11 +4,11 @@
 状态：规划中  
 最后更新：2026-04-25
 
-目标：MarkItDown README 中提到的文件格式用于参考，但 Trans2Former 不照搬 URL、音频转写或云端能力。实现必须保持浏览器端、本地优先、零上传路线，不直接引入 Python、本地 Office、LibreOffice、Pandoc、Electron 或 Playwright。
+目标：MarkItDown README 中提到的文件格式用于参考，但 Trans2Former 不照搬 URL、音频转写或云端能力。实现必须保持桌面 Web-GUI、本地优先、零上传路线，不直接引入 Python、本地 Office、LibreOffice、Pandoc、Electron 或 Playwright。
 
 | MarkItDown 提到的格式 | Trans2Former 目标 | 当前状态 | 浏览器端策略 |
 | --- | --- | --- | --- |
-| PDF | 输入/输出 | 输出为 PDF-print 过渡；PDF 输入未做 | 输出先用浏览器打印，输入后续评估 pdf.js/WASM |
+| PDF | 输入/输出 | 已支持文本型 PDF 输入和程序化 PDF 输出基线 | 后续评估文本顺序、表格、图片和本地 OCR 插件 |
 | PowerPoint | PPTX 输入/输出 | 未做 | 解析/生成 OOXML ZIP；借鉴 PresentationModel/schema 思路 |
 | Word | DOCX 输入/输出 | 未做 | 解析/生成 OOXML ZIP；正文结构进入 DocumentModel |
 | Excel | XLSX/CSV 输入/输出 | CSV 已支持；XLSX 未做 | CSV 走 table block；XLSX 后续解析 OOXML ZIP |
@@ -31,5 +31,5 @@
 4. EPUB：浏览器端 ZIP/XML/XHTML 解析。
 5. Office Open XML：DOCX、XLSX、PPTX。
 6. PDF：先文本型 PDF 提取，再评估程序化输出。
-7. OFD：P4+ 政务格式研究。
+7. OFD：P5 政务、公文、票据场景战略攻坚格式。
 8. Audio/YouTube：删除，不进入主路线。

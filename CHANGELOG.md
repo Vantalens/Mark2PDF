@@ -25,6 +25,7 @@
 - 新增热门基础格式免下载原则：`format-basic` 必须保持小而可用，覆盖高频轻量格式。
 - 新增 OFD 远期研究文档 `docs/OFD_RESEARCH.md`，定位为 P4+ 政务格式和本地插件研究。
 - 新增专业工作台 v1 前端界面：local-only 顶部工具栏、三栏生产面板、基础格式 chips、专业上传区和输出空态。
+- 新增用户端前端工作台 v2：响应式输入/预览/输出布局，移除主界面冗长说明，强化编辑、查看和下载路径。
 - 新增 P0 基础格式质量说明 `docs/BASIC_FORMAT_QUALITY.md`，覆盖 before/after、保真范围和降级说明。
 - 新增 warnings 工具，统一 `info / lossy / unsupported / security / performance` 分级。
 - 新增 P1 DocumentModel 审计层：block id、source span、block-level warnings、asset provenance、conversion metadata 和 quality report。
@@ -46,13 +47,31 @@
 - 新增 DOCX P3 增强：列表、页眉页脚、脚注、批注、合并单元格 warning 和图片 alt text。
 - 新增 XLSX P3 增强：公式保留、基础日期格式、合并单元格 warning 和公式单元格 metadata。
 - 新增 PPTX P3 增强：图片 assets、基础表格、speaker notes、母版引用计数和 alt text。
+- 新增 P4 DOCX output：由 DocumentModel 生成基础 OOXML `.docx` 包。
+- 新增 P4 程序化 PDF output：生成本地 `.pdf` 二进制 data URL，不再以打印 HTML 作为主要 PDF 输出。
+- 新增 P4 PNG/JPEG output：建立本地图像二进制输出通道。
+- 新增二进制输出下载路径，DOCX/PDF/PNG/JPEG 不再按文本 Blob 下载。
+- 新增 `docs/P4_OUTPUTS.md`。
+- OFD 样例、能力、降级和插件准入边界已合并到 `docs/OFD_RESEARCH.md`。
+- 本地 OCR、layout、table model 插件研究规则已合并到 `docs/PLUGIN_SECURITY_MODEL.md`。
+- 用户端前端工作台设计边界已合并到 `docs/DESKTOP_APP_ARCHITECTURE.md`。
+- 新增 `docs/DESKTOP_APP_ARCHITECTURE.md`，确定 Tauri 桌面壳 + Web-GUI + TypeScript core + Worker/WASM + 本地插件系统路线。
+- Tauri + Web-GUI 选择判断、现代桌面体验目标和当前不足已合并到 `docs/DESKTOP_APP_ARCHITECTURE.md`。
+- 新增 `samples/ofd/README.md`，作为 OFD-L0 公开样例登记入口。
+- 新增 `docs/PLUGIN_DISTRIBUTION.md`，确定插件下载默认跳转 GitHub Releases，并要求浏览器端和桌面端保留下载板块与更新板块。
 
 ### 变更
 
+- 产品方向从纯浏览器 Web 应用调整为 Trans2Former Desktop：Tauri 桌面 Web-GUI 专业格式转换工作台，当前 Web 应用作为核心验证底座保留。
+- OFD 从“远期研究/不进近期路线”升级为 P5 战略攻坚格式，目标是本地高保真、质量报告和可解释降级。
+- `DEVELOPMENT_TASKS.md` 已重排为 Desktop P0-P5：桌面工作台、编辑体验、低内存响应、插件隔离、重格式插件和 OFD/高保真攻坚。
+- 插件分发路线调整为 GitHub Releases 优先：应用内只做下载/更新展示、跳转、导入、校验和回滚，不自建插件分发后端。
+- 精简开发文档入口：删除重复专题页，将桌面体验、前端边界、本地模型插件和 OFD capability 内容并入主文档。
 - 确定开发方向为模块化插件设计：基础热门格式免下载，重格式和可选能力按用户需求下载或加载对应模块插件。
 - 安全路线收紧为零云端文档处理：不提供远程转换、云端 OCR、云端转写或云端 AI 增强。
 - 格式路线删除 URL / YouTube / Audio transcription 主线，ZIP 降级为容器基础设施。
 - 浏览器主界面从 demo 风格调整为专业转换工作台风格。
+- 浏览器主界面从三栏说明型工作台重建为响应式用户端工具界面。
 - 前端字体栈调整为 Claude 风格优先级，保持现有配色不变。
 - Markdown 解析增强：支持有序列表、嵌套层级提示、表格对齐、脚注引用和脚注降级 warning。
 - CSV 解析增强：支持 BOM、引号内逗号、引号内换行、空单元格、CRLF/LF 混合换行。
@@ -62,6 +81,7 @@
 - PNG asset fallback 命名避免重复 `.png` 扩展名，并由审计层补齐 provenance。
 - 输入格式矩阵新增 DOCX、XLSX、EPUB、PDF、PPTX input MVP。
 - P3 状态从 MVP 推进为完成，后续真实样例扩展和高保真输出进入 P4。
+- P4 状态推进为完成，后续进入 P4+ 真实样例、视觉质量和专业格式插件实现。
 - `npm test` 现在运行核心 smoke、转换快照、浏览器自检静态服务检查、本地安全 smoke test、资源预算 smoke test、插件安全 smoke test 和 release readiness test。
 - `DEVELOPMENT_TASKS.md` 已整理为任务看板，长期原则和格式矩阵移入 `docs/` 专题文档。
 - Worker 错误现在透传结构化错误字段，便于 UI 渲染。

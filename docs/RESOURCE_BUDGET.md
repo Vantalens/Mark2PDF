@@ -17,7 +17,7 @@ core
   DocumentModel / registry / schema / errors / worker protocol / safety tests
 
 format-basic
-  Markdown / HTML / TXT / JSON / CSV / XML / PNG input / DOCX input / XLSX input / EPUB input / PDF text input / PPTX input / PDF-print
+  Markdown / HTML / TXT / JSON / CSV / XML / PNG input/output / DOCX input/output / XLSX input / EPUB input / PDF input/output / PPTX input / JPEG output
 
 format-plugin
   high-fidelity Office/PDF output / advanced image formats / OFD research / heavy renderers

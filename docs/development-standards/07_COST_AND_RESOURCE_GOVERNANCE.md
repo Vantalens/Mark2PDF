@@ -24,10 +24,10 @@ core
   DocumentModel / registry / schema / errors / worker protocol / security / base UI
 
 format-basic
-  Markdown / HTML / TXT / JSON / CSV / XML / PNG input / PDF-print
+  Markdown / HTML / TXT / JSON / CSV / XML / PNG input/output / DOCX input/output / PDF input/output / JPEG output
 
 format-plugin
-  PDF input / DOCX / PPTX / XLSX / EPUB / advanced image formats / OFD research
+  PDF input / DOCX / PPTX / XLSX / EPUB / advanced image formats / OFD high-fidelity plugin
 
 optional-plugin
   local OCR / local layout analysis / local table recovery / local model plugins
@@ -46,7 +46,7 @@ optional-plugin
 - CSV
 - XML
 - PNG input
-- PDF-print
+- DOCX / PDF / PNG / JPEG output
 
 格式晋升为 `format-basic` 必须同时满足：
 
@@ -56,7 +56,7 @@ optional-plugin
 - 不需要默认网络访问
 - 有样例、快照、warnings 和安全测试
 
-DOCX、PPTX、XLSX、PDF input、EPUB 等即使热门，也先以 `format-plugin` 进入；只有在不破坏核心预算和安全边界时，才允许评估是否晋升为基础能力。OFD 归为 P4+ 远期政务格式研究。
+DOCX、PPTX、XLSX、PDF input、EPUB 等热门能力可以评估进入基础免下载层，但必须受核心预算和安全边界约束。OFD 归为 P5 战略攻坚格式，通过本地插件推进高保真解析、渲染、质量报告和回归样例，不进入默认核心包。
 
 ## 插件 manifest 必填字段
 

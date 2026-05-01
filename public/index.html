@@ -4,175 +4,136 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Trans2Former</title>
-    <meta name="description" content="Trans2Former 浏览器端多格式文档转换：Markdown / HTML / TXT / JSON / CSV / XML / PNG / PDF。" />
+    <meta name="description" content="Trans2Former 本地优先多格式文档转换。" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="app-container">
-      <header class="app-header">
-        <div class="brand-block">
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
           <div class="brand-mark" aria-hidden="true">T2F</div>
-          <div class="header-content">
-            <h1 class="app-title">Trans2Former</h1>
-            <p class="app-subtitle">Local-first document conversion workbench</p>
+          <div>
+            <h1>Trans2Former</h1>
+            <span>本地文档转换</span>
           </div>
         </div>
-        <div class="security-strip" aria-label="处理模式">
-          <span class="mode-pill">LOCAL-ONLY</span>
-          <span class="mode-copy">零上传 · 文档处理禁联网</span>
+
+        <div class="topbar-center">
+          <label class="compact-field">
+            <span>输入</span>
+            <select id="fromFormatSelect"></select>
+          </label>
+          <span class="format-arrow" aria-hidden="true">→</span>
+          <label class="compact-field">
+            <span>输出</span>
+            <select id="toFormatSelect"></select>
+          </label>
+          <label class="compact-field paper-field">
+            <span>纸张</span>
+            <select id="paperFormatSelect">
+              <option value="A4">A4</option>
+              <option value="Letter">Letter</option>
+            </select>
+          </label>
         </div>
-        <div class="header-actions">
-          <div class="status-indicator" id="statusText">就绪</div>
-          <button id="transformButton" class="primary-button" type="button">执行转换</button>
-          <button id="cancelTransformButton" class="secondary-button" type="button" disabled hidden>取消</button>
-          <a id="downloadOutputButton" class="secondary-button disabled" href="#" download>下载输出</a>
-        </div>
-        <div id="conversionProgress" class="conversion-progress" data-state="idle" aria-live="polite">
-          <div class="progress-meta">
-            <span id="progressStage">待命</span>
-            <span id="progressPercent">0%</span>
-          </div>
-          <div class="progress-track" aria-hidden="true">
-            <div id="progressFill" class="progress-fill"></div>
-          </div>
+
+        <div class="topbar-actions">
+          <div id="statusText" class="status-chip">就绪</div>
+          <button id="transformButton" class="primary-button" type="button">转换</button>
+          <button id="cancelTransformButton" class="ghost-button" type="button" disabled hidden>取消</button>
+          <a id="downloadOutputButton" class="ghost-button disabled" href="#" download>下载</a>
         </div>
       </header>
 
-      <div class="workspace">
-        <article class="panel editor-panel">
-          <div class="panel-header">
-            <div>
-              <span class="panel-kicker">SOURCE</span>
-              <h2>输入文档</h2>
-            </div>
-            <div class="file-meta" id="fileMeta">未上传</div>
+      <section id="conversionProgress" class="progress-bar" data-state="idle" aria-live="polite">
+        <span id="progressStage">待命</span>
+        <div class="progress-track" aria-hidden="true"><div id="progressFill" class="progress-fill"></div></div>
+        <span id="progressPercent">0%</span>
+      </section>
+
+      <main class="workspace">
+        <section class="source-pane">
+          <div class="upload-row">
+            <label id="dropZone" class="drop-zone" for="fileInput">
+              <input
+                id="fileInput"
+                type="file"
+                accept=".md,.markdown,.html,.htm,.txt,.json,.csv,.xml,.png,.docx,.xlsx,.epub,.pdf,.pptx,text/markdown,text/html,text/plain,application/json,text/csv,application/xml,text/xml,image/png,application/pdf"
+                hidden
+              />
+              <span class="upload-icon" aria-hidden="true">+</span>
+              <span>
+                <strong>选择文件</strong>
+                <small id="fileMeta">未上传</small>
+              </span>
+            </label>
+            <button id="loadSampleButton" class="ghost-button" type="button">示例</button>
           </div>
 
-          <label class="drop-zone" id="dropZone" for="fileInput">
-            <input id="fileInput" type="file" accept=".md,.markdown,.html,.htm,.txt,.json,.csv,.xml,.png,text/markdown,text/html,text/plain,application/json,text/csv,application/xml,text/xml,image/png" hidden />
-            <div class="drop-zone-inner">
-              <div class="drop-icon" aria-hidden="true">+</div>
-              <div>
-                <strong>拖拽文件或点击上传</strong>
-                <span>基础格式免下载，本地读取</span>
-              </div>
-            </div>
-            <div class="format-chips" aria-label="基础格式">
-              <span>MD</span>
-              <span>HTML</span>
-              <span>TXT</span>
-              <span>JSON</span>
-              <span>CSV</span>
-              <span>XML</span>
-              <span>PNG</span>
-            </div>
-          </label>
-
-          <div class="format-controls">
-            <label>
-              输入格式
-              <select id="fromFormatSelect">
-                <option value="md">Markdown</option>
-                <option value="html">HTML</option>
-                <option value="txt">TXT</option>
-                <option value="json">JSON</option>
-              </select>
-            </label>
-            <label>
-              输出格式
-              <select id="toFormatSelect">
-                <option value="pdf">PDF</option>
-                <option value="html">HTML</option>
-                <option value="md">Markdown</option>
-                <option value="txt">TXT</option>
-                <option value="json">JSON</option>
-              </select>
-            </label>
-            <label>
-              纸张
-              <select id="paperFormatSelect">
-                <option value="A4">A4</option>
-                <option value="Letter">Letter</option>
-              </select>
-            </label>
-          </div>
-          <div id="formatCapabilityNote" class="format-capability-note"></div>
-
-          <textarea id="inputContent" spellcheck="false" placeholder="在这里编辑输入内容..."></textarea>
-
-          <div class="panel-footer">
-            <div class="word-count">
+          <div class="editor-toolbar">
+            <div id="formatCapabilityNote" class="format-note">本地处理</div>
+            <div class="editor-stats">
               <span id="wordCount">字数: 0</span>
               <span id="lineCount">行数: 0</span>
             </div>
-            <button id="loadSampleButton" class="ghost-button small" type="button">加载示例</button>
           </div>
-        </article>
 
-        <article class="panel preview-panel">
-          <div class="panel-header">
-            <div>
-              <span class="panel-kicker">DOCUMENTMODEL</span>
-              <h2>标准化预览</h2>
+          <textarea id="inputContent" spellcheck="false" placeholder="输入或上传文档内容"></textarea>
+        </section>
+
+        <section class="result-pane">
+          <div class="result-toolbar">
+            <div class="result-title">
+              <strong>预览</strong>
+              <span id="outputMeta">未生成</span>
             </div>
-            <div class="preview-controls">
-              <label class="checkbox-label" for="autoPreviewCheckbox">
+            <div class="preview-actions">
+              <label class="toggle-label" for="autoPreviewCheckbox">
                 <input id="autoPreviewCheckbox" type="checkbox" />
-                自动
+                自动预览
               </label>
-              <button id="refreshPreviewButton" class="ghost-button small" type="button">刷新</button>
+              <button id="refreshPreviewButton" class="ghost-button" type="button">刷新</button>
             </div>
           </div>
 
-          <div id="htmlPreview" class="preview-frame preview-markdown" aria-label="Markdown 预览"></div>
-        </article>
-
-        <article class="panel output-panel">
-          <div class="panel-header">
-            <div>
-              <span class="panel-kicker">OUTPUT</span>
-              <h2>转换输出</h2>
-            </div>
-            <div class="file-meta" id="outputMeta">未生成</div>
-          </div>
-
-          <div class="output-preview-wrapper">
-            <section id="errorDetailsPanel" class="error-details-panel" hidden aria-live="polite">
-              <div class="error-details-header">
-                <div>
-                  <strong>错误详情</strong>
-                  <span id="errorDetailsSummary">等待转换</span>
-                </div>
-                <button id="copyErrorDiagnosticsButton" class="ghost-button small" type="button">复制诊断</button>
+          <div class="viewer-grid">
+            <article class="viewer-card">
+              <div class="viewer-card-header">
+                <span>标准化内容</span>
               </div>
-              <dl class="error-details-grid">
-                <div>
-                  <dt>分类</dt>
-                  <dd id="errorCategory">-</dd>
+              <div id="htmlPreview" class="preview-frame preview-markdown" aria-label="标准化预览"></div>
+            </article>
+
+            <article class="viewer-card">
+              <div class="viewer-card-header">
+                <span>输出查看</span>
+                <button id="openPdfPreviewButton" class="mini-button" type="button">打开 PDF</button>
+              </div>
+              <section id="errorDetailsPanel" class="error-details-panel" hidden aria-live="polite">
+                <div class="error-details-header">
+                  <div>
+                    <strong>转换失败</strong>
+                    <span id="errorDetailsSummary">等待转换</span>
+                  </div>
+                  <button id="copyErrorDiagnosticsButton" class="mini-button" type="button">复制诊断</button>
                 </div>
-                <div>
-                  <dt>代码</dt>
-                  <dd id="errorCode">-</dd>
-                </div>
-                <div>
-                  <dt>格式</dt>
-                  <dd id="errorFormat">-</dd>
-                </div>
-              </dl>
-              <pre id="errorMessageText" class="error-message-text"></pre>
-              <details class="error-raw-details">
-                <summary>高级调试信息</summary>
-                <pre id="errorDebugText"></pre>
-              </details>
-            </section>
-            <button id="openPdfPreviewButton" class="ghost-button" type="button" style="margin-bottom: 12px; width: 100%;">
-              浏览器打印 / 另存为 PDF
-            </button>
-            <iframe id="pdfPreview" title="PDF 预览" class="preview-frame pdf-frame"></iframe>
-            <pre id="textOutputPreview" class="preview-frame text-output-preview"></pre>
+                <dl class="error-details-grid">
+                  <div><dt>分类</dt><dd id="errorCategory">-</dd></div>
+                  <div><dt>代码</dt><dd id="errorCode">-</dd></div>
+                  <div><dt>格式</dt><dd id="errorFormat">-</dd></div>
+                </dl>
+                <pre id="errorMessageText" class="error-message-text"></pre>
+                <details class="error-raw-details">
+                  <summary>调试信息</summary>
+                  <pre id="errorDebugText"></pre>
+                </details>
+              </section>
+              <iframe id="pdfPreview" title="PDF 预览" class="preview-frame pdf-frame"></iframe>
+              <pre id="textOutputPreview" class="preview-frame text-output-preview"></pre>
+            </article>
           </div>
-        </article>
-      </div>
+        </section>
+      </main>
     </div>
 
     <script type="module" src="/app.js"></script>

@@ -4,7 +4,7 @@
 状态：P0 生效  
 最后更新：2026-04-30
 
-本文记录免下载基础格式的 before/after 样例、保真范围和可解释降级路径。基础格式包括 Markdown、HTML、TXT、JSON、CSV、XML、PNG input 和 PDF-print output。
+本文记录免下载基础格式的 before/after 样例、保真范围和可解释降级路径。基础格式包括 Markdown、HTML、TXT、JSON、CSV、XML、PNG input/output 和 PDF output。
 
 ## 质量原则
 
@@ -114,10 +114,10 @@ After:
 
 降级说明：P0 不做 OCR，不读取图片内文字，不调用云端视觉能力。
 
-## PDF-print Output
+## PDF Output
 
 After:
 
-- 生成可打印 HTML，由浏览器打印/另存为 PDF。
+- P4 生成程序化 PDF 二进制 data URL。
 
 降级说明：P0 不是程序化 PDF 引擎，不保证复杂分页、字体嵌入和印刷级排版。

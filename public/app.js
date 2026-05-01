@@ -45,13 +45,13 @@ const formatCapabilities = getFormatCapabilities();
 
 const BINARY_INPUT_FORMATS = new Set(["docx", "xlsx", "epub", "pptx", "pdf", "png"]);
 
-const sampleMarkdown = `# Trans2Former Demo
+const sampleMarkdown = `# 示例文档
 
-这是一个浏览器端转换示例。当前页面可在浏览器内完成 Markdown / HTML / TXT / JSON / CSV / XML 互转。
+这是一段可编辑内容。
 
-- 不依赖 Electron
-- 不把文档内容发送到后端 API
-- PDF 过渡方案使用浏览器打印并另存为 PDF
+- 支持多格式输入
+- 支持实时预览
+- 支持下载输出
 
 \`\`\`javascript
 function greet(name) {
@@ -239,7 +239,7 @@ function updateOutputPreviewVisibility(isPdf) {
   if (isPdf) {
     pdfPreview.style.display = "block";
     openPdfPreviewButton.style.display = "block";
-    openPdfPreviewButton.textContent = "浏览器打印 / 另存为 PDF";
+    openPdfPreviewButton.textContent = "打开 PDF 预览";
     textOutputPreview.style.display = "none";
   } else {
     pdfPreview.style.display = "none";
@@ -267,10 +267,7 @@ function updateFormatCapabilityNote() {
   }
   const from = formatCapabilities.find((item) => item.format === fromFormatSelect.value);
   const to = formatCapabilities.find((item) => item.format === toFormatSelect.value);
-  const notes = [];
-  if (from?.note) notes.push(`输入 ${from.label}: ${from.note}`);
-  if (to?.note) notes.push(`输出 ${to.label}: ${to.note}`);
-  noteEl.textContent = notes.length > 0 ? notes.join("；") : "当前转换会经过 DocumentModel 标准化，复杂样式可能降级。";
+  noteEl.textContent = `${from?.label || fromFormatSelect.value} -> ${to?.label || toFormatSelect.value} · 本地处理`;
 }
 
 function syncFormatOptions() {
@@ -404,6 +401,19 @@ function createDownloadUrl(outputText, mime) {
   return currentOutputBlobUrl;
 }
 
+function dataUrlToBytes(dataUrl) {
+  const match = String(dataUrl || "").match(/^data:[^;]+;base64,(.+)$/);
+  if (!match) return new Uint8Array();
+  const binary = atob(match[1]);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function createBinaryDownloadUrl(dataUrl, mime) {
+  revokeOutputUrl();
+  currentOutputBlobUrl = URL.createObjectURL(new Blob([dataUrlToBytes(dataUrl)], { type: mime }));
+  return currentOutputBlobUrl;
+}
+
 function createConvertWorker() {
   if (typeof Worker === "undefined") {
     return null;
@@ -481,6 +491,25 @@ async function transformContent() {
     const result = await convertWithWorker({ content, from, to, title, fileName: currentFileName });
     const baseName = getBaseName(currentFileName);
 
+    if (result.type === "binary") {
+      const outputUrl = createBinaryDownloadUrl(result.data, result.mime);
+      downloadOutputButton.href = outputUrl;
+      downloadOutputButton.download = `${baseName}.${getOutputExtension(result.format)}`;
+      downloadOutputButton.textContent = "下载二进制输出";
+      textOutputPreview.textContent = `已生成 ${result.format.toUpperCase()} 二进制输出，可直接下载。`;
+      if (result.format === "pdf") {
+        pdfPreview.src = outputUrl;
+        updateOutputPreviewVisibility(true);
+      } else {
+        updateOutputPreviewVisibility(false);
+      }
+      updateDownloadState(true);
+      setOutputMeta(`二进制输出已生成 · ${result.mime}`);
+      updateConversionProgress({ stage: "complete", progress: 1, message: "转换完成" });
+      setStatus("浏览器端本地二进制转换成功", "success");
+      return;
+    }
+
     if (result.type === "print") {
       currentPrintHtml = result.data;
       const previewUrl = createDownloadUrl(currentPrintHtml, result.mime);
@@ -524,6 +553,10 @@ async function transformContent() {
 }
 
 function printCurrentPdf() {
+  if (!currentPrintHtml && currentOutputBlobUrl) {
+    window.open(currentOutputBlobUrl, "_blank");
+    return;
+  }
   if (!currentPrintHtml) {
     setStatus("当前没有可打印内容", "error");
     return;
