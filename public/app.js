@@ -1,12 +1,19 @@
 import {
   convertContent as convertInBrowser,
   detectFormatFromName,
+  getAllowedOutputFormats,
   getFormatCapabilities,
   getOutputExtension,
   renderPreviewHtml,
   toDocumentModel,
 } from "./browser-transformer.js";
 import { normalizeConversionError } from "./core/conversion-error.js";
+import { getPlainText } from "./core/document-model.js";
+import {
+  createReadableInputDisplay as createReadableInputDisplayState,
+  isBinaryInputFormat as isBinaryInputFormatState,
+  shouldUseLargeTextPreview,
+} from "./core/input-state.js";
 import {
   createPluginRecord,
   discoverPluginCapabilities,
@@ -21,6 +28,8 @@ import {
   createQueueItem as createWorkbenchQueueItem,
   summarizeQualityReport,
 } from "./core/workbench-state.js";
+import { readBlobAsDecodedText } from "./core/text-decoding.js";
+import { TRUSTED_PLUGIN_CATALOG } from "./plugin-catalog.js";
 
 const inputContent = document.getElementById("inputContent");
 const fileInput = document.getElementById("fileInput");
@@ -88,10 +97,11 @@ const lineCountEl = document.getElementById("lineCount");
 const fromFormatSelect = document.getElementById("fromFormatSelect");
 const toFormatSelect = document.getElementById("toFormatSelect");
 const paperFormatSelect = document.getElementById("paperFormatSelect");
+const paperField = paperFormatSelect?.closest(".paper-field");
 
 const formatCapabilities = getFormatCapabilities();
 
-const BINARY_INPUT_FORMATS = new Set(["docx", "xlsx", "epub", "pptx", "pdf", "png"]);
+const BINARY_INPUT_FORMATS = new Set(["doc", "docx", "xlsx", "epub", "pptx", "pdf", "png", "ofd"]);
 
 const sampleMarkdown = `# 示例文档
 
@@ -109,6 +119,7 @@ function greet(name) {
 `;
 
 let currentFileName = "document.md";
+let currentInputContent = sampleMarkdown;
 let currentOutputBlobUrl = "";
 let currentPrintHtml = "";
 let previewTimer = null;
@@ -148,57 +159,6 @@ const EDITABLE_OUTPUT_FORMATS = new Set(["md", "html", "txt", "json", "csv", "xm
 const HISTORY_PREFERENCE_KEY = "trans2former.history.optIn";
 const MARKDOWN_PROFILE_PREFERENCE_KEY = "trans2former.markdown.profile";
 const PLUGIN_STATE_KEY = "trans2former.plugins.state";
-const TRUSTED_PLUGIN_CATALOG = [
-  {
-    schemaVersion: "trans2former.plugin.v1",
-    id: "ofd-local-reader",
-    name: "OFD Local Reader",
-    version: "0.2.0",
-    kind: "format-plugin",
-    entry: "plugins/ofd-local-reader/index.js",
-    releaseUrl: "https://github.com/Vantalens/trans2former-ofd-plugin/releases",
-    formats: [{ format: "ofd", canRead: true, canWrite: false }],
-    permissions: ["install-network", "cache-plugin", "process-document", "read-assets", "write-output"],
-    resources: { downloadBytes: 4_000_000, maxRuntimeMemoryMb: 768 },
-    integrity: { sha256: "0".repeat(64) },
-    security: { installMode: "network-only-no-documents", processingMode: "local-only-no-network" },
-    fallback: {
-      code: "OFD_PLUGIN_UNAVAILABLE",
-      message: "OFD plugin unavailable; keep the document local and show a fallback warning.",
-    },
-    updates: {
-      latestVersion: "0.3.0",
-      releaseNotes: "Improves OFD page tree extraction and warning details.",
-      permissions: ["process-document", "read-assets", "write-output"],
-      resources: { downloadBytes: 4_500_000, maxRuntimeMemoryMb: 768 },
-    },
-  },
-  {
-    schemaVersion: "trans2former.plugin.v1",
-    id: "local-ocr-basic",
-    name: "Local OCR Basic",
-    version: "0.1.0",
-    kind: "local-model-plugin",
-    entry: "plugins/local-ocr-basic/index.js",
-    releaseUrl: "https://github.com/Vantalens/trans2former-local-ocr/releases",
-    formats: [{ format: "png", canRead: true, canWrite: false }],
-    permissions: ["process-document", "read-assets", "write-output"],
-    resources: { downloadBytes: 120_000_000, maxRuntimeMemoryMb: 2048 },
-    integrity: { sha256: "0".repeat(64) },
-    security: { installMode: "network-only-no-documents", processingMode: "local-only-no-network" },
-    install: { manual: true, removable: true },
-    fallback: {
-      code: "LOCAL_OCR_MODEL_MISSING",
-      message: "Local OCR model is unavailable; keep the original image and explain the limitation.",
-    },
-    updates: {
-      latestVersion: "0.1.1",
-      releaseNotes: "Updates model metadata and resource budget notes.",
-      permissions: ["process-document", "read-assets", "write-output"],
-      resources: { downloadBytes: 118_000_000, maxRuntimeMemoryMb: 2048 },
-    },
-  },
-];
 const PROGRESS_STAGE_LABELS = {
   idle: "待命",
   read: "读取输入",
@@ -565,7 +525,7 @@ function getHistoryStorageKey() {
     fromFormatSelect.value,
     toFormatSelect.value,
     markdownOutputProfile,
-    inputContent.value,
+    getActiveInputContent(),
   ].join("\u001f"))}`;
 }
 
@@ -1061,6 +1021,29 @@ function updateWordCount() {
   lineCountEl.textContent = `行数: ${text.split("\n").length}`;
 }
 
+function isBinaryInputFormat(format = fromFormatSelect.value) {
+  return isBinaryInputFormatState(format, BINARY_INPUT_FORMATS);
+}
+
+function getActiveInputContent() {
+  return currentInputContent || inputContent.value;
+}
+
+function syncInputEditorMode(format = fromFormatSelect.value) {
+  inputContent.readOnly = isBinaryInputFormat(format);
+}
+
+function createReadableInputDisplay(rawContent, format, fileName) {
+  return createReadableInputDisplayState({
+    rawContent,
+    format,
+    fileName,
+    binaryFormats: BINARY_INPUT_FORMATS,
+    toDocumentModel,
+    getPlainText,
+  });
+}
+
 function revokeOutputUrl() {
   if (currentOutputBlobUrl) {
     URL.revokeObjectURL(currentOutputBlobUrl);
@@ -1131,7 +1114,7 @@ function updateOutputPreviewVisibility(isPdf) {
 
 function getPayloadKey() {
   return JSON.stringify({
-    content: inputContent.value,
+    content: getActiveInputContent(),
     from: fromFormatSelect.value,
     file: currentFileName,
   });
@@ -1139,6 +1122,9 @@ function getPayloadKey() {
 
 function syncPdfPaperControl() {
   paperFormatSelect.disabled = toFormatSelect.value !== "pdf";
+  if (paperField) {
+    paperField.hidden = toFormatSelect.value !== "pdf";
+  }
 }
 
 function syncMarkdownProfileControl() {
@@ -1165,11 +1151,12 @@ function syncFormatOptions() {
   fromFormatSelect.replaceChildren(...formatCapabilities
     .filter((item) => item.canRead)
     .map((item) => new Option(item.label, item.format)));
-  toFormatSelect.replaceChildren(...formatCapabilities
-    .filter((item) => item.canWrite)
-    .map((item) => new Option(item.label, item.format)));
   fromFormatSelect.value = [...fromFormatSelect.options].some((option) => option.value === currentFrom) ? currentFrom : "md";
-  toFormatSelect.value = [...toFormatSelect.options].some((option) => option.value === currentTo) ? currentTo : "html";
+  const allowedOutputs = new Set(getAllowedOutputFormats(fromFormatSelect.value));
+  toFormatSelect.replaceChildren(...formatCapabilities
+    .filter((item) => item.canWrite && allowedOutputs.has(item.format))
+    .map((item) => new Option(item.label, item.format)));
+  toFormatSelect.value = [...toFormatSelect.options].some((option) => option.value === currentTo) ? currentTo : toFormatSelect.options[0]?.value || "html";
   updateFormatCapabilityNote();
 }
 
@@ -1242,12 +1229,18 @@ function renderPreview() {
   }
 
   setStatus("正在浏览器端渲染预览...");
-  if (inputContent.value.length >= LARGE_PROGRESSIVE_PREVIEW_BYTES) {
-    renderLargeDocumentPreview(inputContent.value, currentFileName);
+  const content = getActiveInputContent();
+  if (shouldUseLargeTextPreview({
+    format: fromFormatSelect.value,
+    contentLength: content.length,
+    threshold: LARGE_PROGRESSIVE_PREVIEW_BYTES,
+    binaryFormats: BINARY_INPUT_FORMATS,
+  })) {
+    renderLargeDocumentPreview(content, currentFileName);
     return;
   }
-  const model = toDocumentModel(inputContent.value, fromFormatSelect.value, currentFileName);
-  const bodyHtml = renderPreviewHtml(inputContent.value, fromFormatSelect.value, currentFileName);
+  const model = toDocumentModel(content, fromFormatSelect.value, currentFileName);
+  const bodyHtml = renderPreviewHtml(content, fromFormatSelect.value, currentFileName);
   htmlPreview.innerHTML = bodyHtml;
   renderDocumentModelPanel(model);
   renderBottomReports(model);
@@ -1281,9 +1274,11 @@ function schedulePreviewUpdate() {
 
 async function handleInputText(rawContent, fileName = currentFileName, { renderInitialPreview = true } = {}) {
   currentFileName = fileName;
-  inputContent.value = rawContent;
+  currentInputContent = String(rawContent ?? "");
+  inputContent.value = createReadableInputDisplay(currentInputContent, fromFormatSelect.value, fileName);
+  syncInputEditorMode();
   setFileMeta(fileName);
-  updateLargePreviewControls(rawContent.length);
+  updateLargePreviewControls(currentInputContent.length);
   currentDocumentModel = null;
   resetGeneratedOutput();
   renderDocumentModelPanel(null);
@@ -1291,8 +1286,13 @@ async function handleInputText(rawContent, fileName = currentFileName, { renderI
   lastRenderedPayload = "";
   clearErrorDetails();
   updateWordCount();
-  if (rawContent.length >= LARGE_PROGRESSIVE_PREVIEW_BYTES) {
-    renderLargeDocumentPreview(rawContent, fileName);
+  if (shouldUseLargeTextPreview({
+    format: fromFormatSelect.value,
+    contentLength: currentInputContent.length,
+    threshold: LARGE_PROGRESSIVE_PREVIEW_BYTES,
+    binaryFormats: BINARY_INPUT_FORMATS,
+  })) {
+    renderLargeDocumentPreview(currentInputContent, fileName);
   } else if (renderInitialPreview) {
     renderPreviewWhenIdle();
   } else {
@@ -1310,26 +1310,14 @@ function readFileAsDataUrl(file) {
 }
 
 async function readFileAsTextChunked(file) {
-  if (!file.stream || typeof TextDecoder === "undefined") {
-    return file.text();
+  if (file.size >= LARGE_FILE_PREVIEW_BYTES) {
+    setStatus(`正在读取大文件 ${formatFileSize(file.size)} 并检测文本编码`, "info");
   }
-  const reader = file.stream().getReader();
-  const decoder = new TextDecoder("utf-8", { fatal: false });
-  const chunks = [];
-  let loaded = 0;
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
-    }
-    loaded += value.byteLength;
-    chunks.push(decoder.decode(value, { stream: true }));
-    if (file.size >= LARGE_FILE_PREVIEW_BYTES) {
-      setStatus(`正在分片读取大文件 ${Math.round((loaded / file.size) * 100)}%`, "info");
-    }
+  const decoded = await readBlobAsDecodedText(file, { fileName: file.name, mime: file.type });
+  if (decoded.encoding && decoded.encoding !== "utf-8") {
+    setStatus(`已按 ${decoded.encoding.toUpperCase()} 解码文本文件`, "info");
   }
-  chunks.push(decoder.decode());
-  return chunks.join("");
+  return decoded.text;
 }
 
 async function handleFile(file) {
@@ -1339,7 +1327,7 @@ async function handleFile(file) {
 
   const detectedFormat = detectFormatFromName(file.name);
   if (!detectedFormat) {
-    setStatus("请选择 .md / .html / .txt / .json / .csv / .xml / .png / .docx / .xlsx / .epub / .pdf / .pptx 文件", "error");
+    setStatus("请选择 .md / .html / .txt / .json / .csv / .xml / .png / .doc / .docx / .xlsx / .epub / .pdf / .pptx / .ofd 文件", "error");
     return;
   }
 
@@ -1349,6 +1337,7 @@ async function handleFile(file) {
     renderFileQueue();
     const content = BINARY_INPUT_FORMATS.has(detectedFormat) ? await readFileAsDataUrl(file) : await readFileAsTextChunked(file);
     fromFormatSelect.value = detectedFormat;
+    syncFormatOptions();
     updateActiveQueueItem({ status: "ready" });
     await handleInputText(content, file.name, {
       renderInitialPreview: BINARY_INPUT_FORMATS.has(detectedFormat) || file.size < LARGE_FILE_PREVIEW_BYTES,
@@ -1457,7 +1446,7 @@ function convertWithWorker(payload) {
 }
 
 async function transformContent() {
-  const content = inputContent.value;
+  const content = getActiveInputContent();
   if (!content.trim()) {
     setStatus("请先上传或输入内容", "error");
     return;
@@ -1595,6 +1584,9 @@ fileInput.addEventListener("change", (event) => {
 });
 
 inputContent.addEventListener("input", () => {
+  if (!inputContent.readOnly) {
+    currentInputContent = inputContent.value;
+  }
   schedulePreviewUpdate();
   updateWordCount();
   if (autoPreviewEnabled && inputContent.value.length > LARGE_DOC_THRESHOLD) {
@@ -1671,6 +1663,8 @@ autoPreviewCheckbox.addEventListener("change", () => {
 });
 
 fromFormatSelect.addEventListener("change", () => {
+  syncInputEditorMode();
+  syncFormatOptions();
   lastRenderedPayload = "";
   schedulePreviewUpdate();
   updateFormatCapabilityNote();
@@ -1843,7 +1837,9 @@ loadSampleButton.addEventListener("click", () => {
 
 function bootstrapInitialSample() {
   currentFileName = "sample.md";
+  currentInputContent = sampleMarkdown;
   inputContent.value = sampleMarkdown;
+  syncInputEditorMode("md");
   setFileMeta("sample.md");
   fileQueue = [{
     id: "sample",

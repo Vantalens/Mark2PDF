@@ -49,9 +49,12 @@ try {
   assert.equal(indexHtml.includes("id=\"pluginCapabilityList\""), true, "P3 workbench should expose plugin capability discovery");
   assert.equal(indexHtml.includes("id=\"pluginSecuritySummary\""), true, "P3 workbench should expose plugin mode isolation summary");
   assert.equal(indexHtml.includes("<details id=\"fileQueuePanel\""), true, "modern workbench should keep file queue collapsed by default");
+  assert.equal(indexHtml.includes("<details id=\"fileQueuePanel\" class=\"queue-panel\" aria-label=\"文件队列\" hidden>"), true, "primary UI should hide batch queue from the default user path");
   assert.equal(indexHtml.includes("<details id=\"bottomReportPanel\""), true, "modern workbench should keep reports and plugin metadata collapsed by default");
+  assert.equal(indexHtml.includes("<details id=\"bottomReportPanel\" class=\"bottom-report-panel\" aria-label=\"报告面板\" hidden>"), true, "primary UI should hide diagnostics and plugin reports by default");
   assert.equal(indexHtml.includes("workspace-primary"), true, "modern workbench should expose a simple primary two-pane workflow");
   assert.equal(indexHtml.includes("class=\"auxiliary-actions\""), true, "modern workbench should group secondary actions away from the primary command path");
+  assert.equal(indexHtml.includes("class=\"auxiliary-actions\" hidden"), true, "primary UI should hide maintenance actions by default");
   assert.equal(indexHtml.includes("class=\"output-settings\""), true, "modern workbench should keep export settings behind disclosure");
   assert.equal(indexHtml.includes("class=\"viewer-grid single-view\""), true, "modern workbench should show one right-side work view at a time");
 
@@ -68,6 +71,13 @@ try {
 
   const transformerJs = await fetchText(baseUrl, "/browser-transformer.js");
   assert.equal(transformerJs.includes("ConverterRegistry"), true, "browser transformer module should be served");
+  assert.equal(transformerJs.includes("writeJpeg"), false, "browser transformer must not register placeholder JPEG output");
+  assert.equal(transformerJs.includes("writePng"), false, "browser transformer must not register placeholder PNG output");
+
+  const registryJs = await fetchText(baseUrl, "/core/format-registry.js");
+  assert.equal(registryJs.includes("getAllowedOutputFormats"), true, "format registry should expose the conversion path matrix");
+  assert.equal(registryJs.includes('docx: ["md", "html", "txt", "json", "docx", "pdf"]'), true, "DOCX should not expose PPTX as an output path");
+  assert.equal(registryJs.includes('png: ["html", "txt", "json", "pdf"]'), true, "PNG should stay input-only apart from readable/document outputs");
 
   const appJs = await fetchText(baseUrl, "/app.js");
   assert.equal(appJs.includes("renderErrorDetails"), true, "main app should render structured conversion errors");
@@ -88,6 +98,11 @@ try {
   assert.equal(appJs.includes("renderLargeDocumentPreview"), true, "P2 should render large-file summary/sample previews without full parse");
   assert.equal(appJs.includes("releaseConversionResources"), true, "P2 should centralize Worker and ObjectURL lifecycle cleanup");
   assert.equal(appJs.includes("BINARY_INPUT_FORMATS"), true, "binary formats should avoid text decoding");
+  assert.equal(appJs.includes("getAllowedOutputFormats"), true, "main app should filter output formats by supported conversion paths");
+  assert.equal(appJs.includes("currentInputContent"), true, "binary uploads should keep raw conversion payload separate from editor display text");
+  assert.equal(appJs.includes("getActiveInputContent"), true, "conversion and preview should read the active raw payload, not textarea display text");
+  assert.equal(appJs.includes("createReadableInputDisplay"), true, "binary uploads should render extracted readable text instead of base64 data URLs");
+  assert.equal(appJs.includes("inputContent.readOnly = isBinaryInputFormat"), true, "binary upload previews should be read-only to avoid editing extracted display text as raw binary");
   assert.equal(appJs.includes("createQueueItem"), true, "main app should track queued files as reusable workbench state");
   assert.equal(appJs.includes("renderDocumentModelPanel"), true, "main app should render DocumentModel inspection");
   assert.equal(appJs.includes("renderBottomReports"), true, "main app should render warnings, quality, diff, and versions");
@@ -103,7 +118,7 @@ try {
   assert.equal(appJs.includes("rollbackPlugin"), true, "P3 should support rollback lifecycle controls");
   assert.equal(appJs.includes("discoverPluginCapabilities"), true, "P3 should expose plugin capability discovery");
   assert.equal(appJs.includes("docx"), true, "main app should accept DOCX input");
-  for (const format of ["xlsx", "epub", "pdf", "pptx"]) {
+  for (const format of ["doc", "xlsx", "epub", "pdf", "pptx"]) {
     assert.equal(appJs.includes(format), true, `main app should accept ${format.toUpperCase()} input`);
   }
 
@@ -111,6 +126,7 @@ try {
   assert.equal(workerJs.includes("postMessage"), true, "conversion worker should be served");
   assert.equal(workerJs.includes("normalizeWorkerPayload"), true, "conversion worker should decode transferable ArrayBuffer payloads");
   assert.equal(workerJs.includes("contentBuffer"), true, "conversion worker should accept transferred content buffers");
+  assert.equal(workerJs.includes("trustEncoding: true"), true, "conversion worker should trust explicitly encoded transferable text");
   for (const stage of ["read", "parse", "validate", "convert", "render", "package"]) {
     assert.equal(workerJs.includes(`stage: \"${stage}\"`), true, `conversion worker should emit ${stage} stage`);
   }

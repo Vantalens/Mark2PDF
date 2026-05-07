@@ -10,16 +10,14 @@ P4 的目标是在不引入 Office、LibreOffice、Pandoc、云端 API 或重依
 
 - DOCX output：由 `DocumentModel` 生成基础 OOXML 包，支持标题、段落、列表、表格和资源占位文本。
 - PDF output：程序化生成 `.pdf` 二进制 data URL，不再依赖浏览器打印 HTML 作为 PDF 过渡方案。
-- PNG output：将 `DocumentModel` 渲染为本地 PNG data URL，用于预览封面和轻量分享。
-- JPEG output：提供本地 JPEG 二进制输出路径，作为后续高质量图像渲染器的接口基线。
+- PNG/JPEG output：当前不作为公开输出格式展示；只有真实视觉渲染器能保留文档内容后才进入输出矩阵。
 - 前端下载路径支持 `binary` 输出，不再把二进制 data URL 当作文本 Blob 下载。
 
 ## 当前限制
 
 - DOCX output 是基础结构输出，不还原复杂样式、分页、页眉页脚、脚注、批注、修订和浮动布局。
 - PDF output 当前使用单页文本排版，不处理复杂字体嵌入、分页控制、表格边框和图像绘制。
-- PNG output 采用轻量栅格摘要渲染，不等同于浏览器排版截图。
-- JPEG output 当前是二进制输出通道基线，后续需要接入真实文档栅格化质量。
+- 禁止用空白图、单像素图或摘要栅格冒充文档图片输出。
 - OFD 已升级为 P5 战略攻坚格式，不进入默认核心包，但必须通过本地插件推进高保真解析、渲染和质量回归。
 
 ## 验收
@@ -28,11 +26,11 @@ P4 的目标是在不引入 Office、LibreOffice、Pandoc、云端 API 或重依
 
 - Markdown -> DOCX，读取生成的 OOXML 包并验证 `word/document.xml`。
 - Markdown -> PDF，验证 `%PDF-` 二进制头且不包含打印 HTML。
-- Markdown -> PNG / JPEG，验证 data URL 和二进制文件头。
+- Markdown -> PNG / JPEG 当前必须被路径策略隐藏，并由 `scripts/format-integrity-test.js` 防止重新暴露。
 
 ## 后续
 
 - 建立真实样例库和视觉快照。
 - 增强 PDF 分页、字体、表格和图片绘制。
-- 增强 PNG/JPEG 文本渲染和多页策略。
+- 增强 PNG/JPEG 文本渲染和多页策略，完成视觉回归后再开放输出。
 - 研究 DOCX 高保真输出和 OFD-L0 到 OFD-L4 本地插件攻坚路线。

@@ -4,7 +4,7 @@
 状态：P0 生效  
 最后更新：2026-04-30
 
-本文记录免下载基础格式的 before/after 样例、保真范围和可解释降级路径。基础格式包括 Markdown、HTML、TXT、JSON、CSV、XML、PNG input/output 和 PDF output。
+本文记录免下载基础格式的 before/after 样例、保真范围和可解释降级路径。基础格式包括 Markdown、HTML、TXT、JSON、CSV、XML、PNG input 和 PDF output；文档到 PNG/JPEG 的视觉输出在真实渲染器完成前不进入输出矩阵。
 
 ## 质量原则
 

@@ -24,7 +24,7 @@ core
   DocumentModel / registry / schema / errors / worker protocol / security / base UI
 
 format-basic
-  Markdown / HTML / TXT / JSON / CSV / XML / PNG input/output / DOCX input/output / PDF input/output / JPEG output
+  Markdown / HTML / TXT / JSON / CSV / XML / PNG input / DOCX input/output / PDF input/output
 
 format-plugin
   PDF input / DOCX / PPTX / XLSX / EPUB / advanced image formats / OFD high-fidelity plugin
@@ -46,7 +46,7 @@ optional-plugin
 - CSV
 - XML
 - PNG input
-- DOCX / PDF / PNG / JPEG output
+- DOCX / PDF output；PNG / JPEG output 必须等真实视觉渲染器和回归测试达标后再开放
 
 格式晋升为 `format-basic` 必须同时满足：
 

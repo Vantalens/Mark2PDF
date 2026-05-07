@@ -5,6 +5,7 @@ import { deflateRawSync } from "node:zlib";
 
 import {
   convertContent,
+  getAllowedOutputFormats,
   listFormats,
   renderPreviewHtml,
   toDocumentModel,
@@ -19,8 +20,8 @@ import { assertValidDocumentModel, validateDocumentModel } from "../public/core/
 import { readZipEntries } from "../public/core/zip-container.js";
 
 const SAMPLE_ROOT = path.resolve("samples");
-const INPUT_FORMATS = ["md", "html", "txt", "json", "csv", "xml", "png", "docx", "xlsx", "epub", "pptx", "pdf"];
-const OUTPUT_FORMATS = ["md", "html", "txt", "json", "csv", "xml", "png", "docx", "pdf", "jpeg"];
+const INPUT_FORMATS = ["md", "html", "txt", "json", "csv", "xml", "png", "docx", "doc", "xlsx", "epub", "pptx", "pdf", "ofd"];
+const OUTPUT_FORMATS = ["md", "html", "txt", "json", "csv", "xml", "docx", "xlsx", "epub", "pptx", "pdf"];
 const TEXT_OUTPUT_FORMATS = ["md", "html", "txt", "json", "xml"];
 const EXPECTED_BLOCK_TYPES = ["heading", "paragraph", "list", "code", "table", "quote", "image", "asset", "raw"];
 
@@ -168,6 +169,18 @@ function createZip(entries, { compression = "store", centralDirectory = false, c
     ]));
   }
   return concatBytes(chunks);
+}
+
+function createLegacyDocFixture() {
+  const prefix = Uint8Array.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+  const utf16le = (text) => Uint8Array.from([...text].flatMap((char) => [char.charCodeAt(0), 0x00]));
+  return concatBytes([
+    prefix,
+    encoder.encode("legacy binary noise\n"),
+    utf16le("Legacy Doc Title\n\nBody text from a legacy DOC file."),
+    encoder.encode("\nmore noise\n"),
+    utf16le("Appendix line"),
+  ]);
 }
 
 function createDocxFixture() {
@@ -318,7 +331,7 @@ function assertValidOutput(result, toFormat, label) {
   assert.equal(result.format, toFormat, `${label} should output ${toFormat}`);
   assert.equal(typeof result.data, "string", `${label} should return string data`);
   assert.equal(result.data.trim().length > 0, true, `${label} should not return empty data`);
-  if (["png", "docx", "pdf", "jpeg"].includes(toFormat)) {
+  if (["docx", "pdf"].includes(toFormat)) {
     assert.equal(result.type, "binary", `${label} should use binary output`);
     assert.equal(result.data.startsWith("data:"), true, `${label} should return a data URL`);
   } else {
@@ -354,6 +367,17 @@ test("ZIP/OOXML container reader inflates deflated entries and rejects unsafe pa
     () => readZipEntries(createCentralZip({ "word/document.xml": "<root />" }, { centralNameOverride: "word/missing.xml" })),
     (error) => error instanceof ConversionError && error.code === "ZIP_CENTRAL_DIRECTORY_MISMATCH"
   );
+});
+
+test("DOC input best-effort extraction converts legacy binary text to DocumentModel", () => {
+  const docBytes = createLegacyDocFixture();
+  const model = toDocumentModel(docBytes, "doc", "fixture.doc");
+  assert.equal(validateDocumentModel(model).ok, true);
+  assert.equal(model.blocks.some((block) => String(block.text || "").includes("Legacy Doc Title")), true);
+
+  const markdown = convertContent({ content: docBytes, from: "doc", to: "md", title: "fixture.doc" });
+  assertValidOutput(markdown, "md", "doc to markdown");
+  assert.equal(markdown.data.includes("Legacy Doc Title"), true);
 });
 
 test("DOCX input MVP extracts headings, paragraphs, tables, links, and image assets", () => {
@@ -461,14 +485,13 @@ test("P4 programmatic PDF output returns a real PDF data URL instead of print HT
   assert.equal(output.data.includes("@media print"), false);
 });
 
-test("P4 PNG and JPEG rendering outputs produce binary image data URLs", () => {
-  const png = convertContent({ content: "# Image Export\n\nHello image.", from: "md", to: "png", title: "export.png" });
-  assertValidOutput(png, "png", "markdown to png");
-  assert.deepEqual([...dataUrlToBytes(png.data).slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
-
-  const jpeg = convertContent({ content: "# Image Export\n\nHello image.", from: "md", to: "jpeg", title: "export.jpeg" });
-  assertValidOutput(jpeg, "jpeg", "markdown to jpeg");
-  assert.deepEqual([...dataUrlToBytes(jpeg.data).slice(0, 3)], [0xff, 0xd8, 0xff]);
+test("placeholder image rendering outputs are not advertised as supported conversions", () => {
+  assert.equal(getAllowedOutputFormats("md").includes("png"), false);
+  assert.equal(getAllowedOutputFormats("md").includes("jpeg"), false);
+  assert.throws(
+    () => convertContent({ content: "# Image Export\n\nHello image.", from: "md", to: "jpeg", title: "export.jpeg" }),
+    /输出格式不支持|不支持此转换路径/
+  );
 });
 
 test("PPTX input MVP extracts slide titles and body text", () => {
@@ -580,11 +603,11 @@ test("ConversionError normalizes parse, validate, and convert failures", () => {
   );
 
   assert.throws(
-    () => convertContent({ content: "# Title", from: "md", to: "xlsx", title: "unsupported" }),
+    () => convertContent({ content: "# Title", from: "md", to: "webp", title: "unsupported" }),
     (error) => error instanceof ConversionError
       && error.category === "convert"
       && error.code === "UNSUPPORTED_OUTPUT_FORMAT"
-      && error.format === "xlsx"
+      && error.format === "webp"
   );
 
   const normalized = normalizeConversionError(new Error("plain failure"), {
@@ -743,6 +766,14 @@ test("XML parser reports namespaces, attributes, and parser errors without DOMPa
       && error.code === "XML_PARSE_ERROR"
       && error.format === "xml"
   );
+
+  assert.throws(
+    () => convertContent({ content: "# Title", from: "docx", to: "pptx", title: "blocked" }),
+    (error) => error instanceof ConversionError
+      && error.category === "convert"
+      && error.code === "UNSUPPORTED_CONVERSION_PATH"
+      && error.format === "docx->pptx"
+  );
 });
 
 test("sample fixtures exist and parse into valid DocumentModels", async () => {
@@ -765,6 +796,9 @@ test("sample fixtures convert to common text outputs with explicit degradation p
   const samples = await readSamples();
   for (const sample of samples) {
     for (const toFormat of TEXT_OUTPUT_FORMATS) {
+      if (!getAllowedOutputFormats(sample.format).includes(toFormat)) {
+        continue;
+      }
       const label = `${sample.format}/${sample.fileName} -> ${toFormat}`;
       const result = convertContent({
         content: sample.content.trimEnd(),

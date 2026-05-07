@@ -152,7 +152,7 @@ Tauri + Web-GUI 是当前最合理的桌面路线。
 - 当前文件队列仍是交互骨架，批量转换调度、队列持久化和桌面原生保存仍需后续增强。
 - Asset lazy-load 尚未落地，图片、字体、附件仍需按预览/导出需要加载。
 - 插件系统已有核心运行时，但还缺真实第三方插件代码加载、Worker/WASM 执行容器、fixture 插件和资源限制。
-- DOCX/PDF/PNG/JPEG 输出还只是高保真基线，复杂样式、字体、分页、图片尺寸、表格宽度、视觉 diff 和真实样例回归还不足。
+- DOCX/PDF 输出仍需继续增强高保真；PNG/JPEG 文档图片输出在真实视觉渲染器完成前不暴露给用户。
 - OFD 还没有进入真实实现，容器/manifest/metadata 读取、DocumentModel 提取、本地渲染和视觉回归仍待推进。
 - `release/trans2former-2.0.0/` 当前是 Web-GUI core preview release 包，不是 Tauri 桌面安装包。
 

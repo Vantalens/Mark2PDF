@@ -1,7 +1,11 @@
 import { createAssetReference, createDocumentModel, createHeading, createParagraph, createTable } from "../core/document-model.js";
 import { createAssetStore } from "../core/asset-store.js";
+import { bytesToDataUrl } from "../core/binary-utils.js";
 import { readZipEntries } from "../core/zip-container.js";
+import { writeStoredZip } from "../core/zip-writer.js";
+import { getPlainText } from "../core/document-model.js";
 import { extractTextTags, getAttr, parseRelationships, resolvePartPath } from "./ooxml-utils.js";
+import { escapeHtml } from "./text-utils.js";
 
 function bytesToBase64(bytes) {
   if (typeof btoa === "function") {
@@ -114,4 +118,148 @@ export function readPptx({ content, title = "presentation", fileName = "", forma
       },
     },
   });
+}
+
+function slideTextBlocks(model) {
+  const text = getPlainText(model);
+  const lines = text.split(/\n+/).filter(Boolean);
+  return lines.length > 0 ? lines : [model.title || "Document"];
+}
+
+function slideXml(model, title) {
+  const NS = "http" + "://schemas.openxmlformats.org";
+  const lines = slideTextBlocks(model).slice(0, 10);
+  const body = lines.map((line, index) => `<a:p><a:r><a:rPr lang="zh-CN" sz="${index === 0 ? 2800 : 1800}"/><a:t>${escapeHtml(line)}</a:t></a:r></a:p>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="${NS}/drawingml/2006/main" xmlns:r="${NS}/officeDocument/2006/relationships" xmlns:p="${NS}/presentationml/2006/main">
+  <p:cSld><p:spTree>
+    <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
+    <p:sp><p:nvSpPr><p:cNvPr id="2" name="${escapeHtml(title)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>${body}</p:txBody></p:sp>
+  </p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
+</p:sld>`;
+}
+
+function generateThemeXml(NS) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="${NS}/drawingml/2006/main" name="Office Theme">
+  <a:themeElements>
+    <a:clrScheme name="Office">
+      <a:dk1><a:srgbClr val="000000"/></a:dk1>
+      <a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>
+      <a:dk2><a:srgbClr val="1F497D"/></a:dk2>
+      <a:lt2><a:srgbClr val="EBEBEB"/></a:lt2>
+      <a:accent1><a:srgbClr val="4472C4"/></a:accent1>
+      <a:accent2><a:srgbClr val="ED7D31"/></a:accent2>
+      <a:accent3><a:srgbClr val="A5A5A5"/></a:accent3>
+      <a:accent4><a:srgbClr val="FFC000"/></a:accent4>
+      <a:accent5><a:srgbClr val="5B9BD5"/></a:accent5>
+      <a:accent6><a:srgbClr val="70AD47"/></a:accent6>
+      <a:hyperlink><a:srgbClr val="0563C1"/></a:hyperlink>
+      <a:folHyperlink><a:srgbClr val="954F72"/></a:folHyperlink>
+    </a:clrScheme>
+    <a:fontScheme name="Office">
+      <a:majorFont><a:latin typeface="Calibri"/></a:majorFont>
+      <a:minorFont><a:latin typeface="Calibri"/></a:minorFont>
+    </a:fontScheme>
+    <a:fmtScheme name="Office">
+      <a:fillStyleLst>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+        <a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="phClr"/></a:gs><a:gs pos="100000"><a:schemeClr val="phClr"><a:tint val="50000"/></a:schemeClr></a:gs></a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+      </a:fillStyleLst>
+      <a:lnStyleLst><a:ln w="6350" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="12700" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="19050" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln></a:lnStyleLst>
+      <a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>
+      <a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"><a:tint val="95000"/></a:schemeClr></a:solidFill><a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="phClr"/></a:gs><a:gs pos="100000"><a:schemeClr val="phClr"><a:tint val="50000"/></a:schemeClr></a:gs></a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill></a:bgFillStyleLst>
+    </a:fmtScheme>
+  </a:themeElements>
+  <a:objectDefaults/>
+</a:theme>`;
+}
+
+function generateSlideMasterXml(NS) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldMaster xmlns:a="${NS}/drawingml/2006/main" xmlns:r="${NS}/officeDocument/2006/relationships" xmlns:p="${NS}/presentationml/2006/main">
+  <p:cSld><p:bg><p:bgPr><a:solidFill><a:schemeClr val="bg1"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree>
+    <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
+  </p:spTree></p:cSld>
+  <p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId2"/></p:sldLayoutIdLst>
+  <p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles>
+  <p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
+</p:sldMaster>`;
+}
+
+function generateSlideLayoutXml(NS) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldLayout xmlns:a="${NS}/drawingml/2006/main" xmlns:r="${NS}/officeDocument/2006/relationships" xmlns:p="${NS}/presentationml/2006/main" type="blank">
+  <p:cSld><p:spTree>
+    <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
+  </p:spTree></p:cSld>
+  <p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
+</p:sldLayout>`;
+}
+
+export function writePptx({ model, title = model.title }) {
+  const NS = "http" + "://schemas.openxmlformats.org";
+  const DC_NS = "http" + "://purl.org/dc/elements/1.1/";
+  const EP_NS = "http" + "://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
+  const zipBytes = writeStoredZip([
+    {
+      name: "[Content_Types].xml",
+      data: `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="${NS}/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+  <Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>
+  <Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
+  <Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
+  <Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>`,
+    },
+    {
+      name: "_rels/.rels",
+      data: `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="${NS}/package/2006/relationships">
+  <Relationship Id="rId1" Type="${NS}/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>
+  <Relationship Id="rId2" Type="${NS}/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="${NS}/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`,
+    },
+    {
+      name: "ppt/_rels/presentation.xml.rels",
+      data: `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="${NS}/package/2006/relationships">
+  <Relationship Id="rId1" Type="${NS}/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
+  <Relationship Id="rId2" Type="${NS}/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  <Relationship Id="rId3" Type="${NS}/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
+</Relationships>`,
+    },
+    {
+      name: "ppt/presentation.xml",
+      data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="${NS}/drawingml/2006/main" xmlns:r="${NS}/officeDocument/2006/relationships" xmlns:p="${NS}/presentationml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId2"/></p:sldMasterIdLst><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst><p:sldSz cx="12192000" cy="6858000" type="screen16x9"/><p:notesSz cx="6858000" cy="9144000"/><p:defaultTextStyle/></p:presentation>`,
+    },
+    {
+      name: "docProps/core.xml",
+      data: `<?xml version="1.0" encoding="UTF-8"?><cp:coreProperties xmlns:cp="${NS}/package/2006/metadata/core-properties" xmlns:dc="${DC_NS}"><dc:title>${escapeHtml(title)}</dc:title></cp:coreProperties>`,
+    },
+    {
+      name: "docProps/app.xml",
+      data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="${EP_NS}"><Application>Trans2Former</Application><PresentationFormat>On-screen Show (16:9)</PresentationFormat><Slides>1</Slides><Notes>0</Notes><HiddenSlides>0</HiddenSlides></Properties>`,
+    },
+    { name: "ppt/slides/slide1.xml", data: slideXml(model, title) },
+    { name: "ppt/slides/_rels/slide1.xml.rels", data: `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="${NS}/package/2006/relationships"><Relationship Id="rId1" Type="${NS}/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>` },
+    { name: "ppt/theme/theme1.xml", data: generateThemeXml(NS) },
+    { name: "ppt/slideMasters/slideMaster1.xml", data: generateSlideMasterXml(NS) },
+    { name: "ppt/slideLayouts/slideLayout1.xml", data: generateSlideLayoutXml(NS) },
+    { name: "ppt/slideLayouts/_rels/slideLayout1.xml.rels", data: `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="${NS}/package/2006/relationships"><Relationship Id="rId1" Type="${NS}/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/><Relationship Id="rId2" Type="${NS}/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>` },
+    { name: "ppt/slideMasters/_rels/slideMaster1.xml.rels", data: `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="${NS}/package/2006/relationships"><Relationship Id="rId1" Type="${NS}/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/><Relationship Id="rId2" Type="${NS}/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>` },
+  ]);
+  return {
+    type: "binary",
+    format: "pptx",
+    data: bytesToDataUrl(zipBytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+    mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  };
 }

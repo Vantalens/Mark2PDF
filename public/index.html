@@ -14,7 +14,7 @@
           <div class="brand-mark" aria-hidden="true">T2F</div>
           <div>
             <h1>Trans2Former</h1>
-            <span>Local document studio</span>
+            <span>本地优先 · 格式转换</span>
           </div>
         </div>
 
@@ -40,8 +40,8 @@
         <div class="topbar-actions">
           <button id="transformButton" class="primary-button" type="button">转换</button>
           <button id="cancelTransformButton" class="ghost-button" type="button" disabled hidden>取消</button>
-          <a id="downloadOutputButton" class="ghost-button disabled" href="#" download>下载</a>
-          <details class="auxiliary-actions">
+          <a id="downloadOutputButton" class="ghost-button disabled" href="#" download>下载结果</a>
+          <details class="auxiliary-actions" hidden>
             <summary aria-label="更多操作">更多</summary>
             <div class="auxiliary-menu">
               <button id="pluginManagerButton" class="menu-button" type="button">插件管理</button>
@@ -67,19 +67,19 @@
                 id="fileInput"
                 type="file"
                 multiple
-                accept=".md,.markdown,.html,.htm,.txt,.json,.csv,.xml,.png,.docx,.xlsx,.epub,.pdf,.pptx,text/markdown,text/html,text/plain,application/json,text/csv,application/xml,text/xml,image/png,application/pdf"
+                accept=".md,.markdown,.html,.htm,.txt,.json,.csv,.xml,.png,.doc,.docx,.xlsx,.epub,.pdf,.pptx,.ofd,text/markdown,text/html,text/plain,application/json,text/csv,application/xml,text/xml,image/png,application/pdf"
                 hidden
               />
               <span class="upload-icon" aria-hidden="true">+</span>
               <span>
-                <strong>选择文件</strong>
+                <strong>选择或拖入文件</strong>
                 <small id="fileMeta">未上传</small>
               </span>
             </label>
-            <button id="loadSampleButton" class="ghost-button" type="button">示例</button>
+            <button id="loadSampleButton" class="ghost-button" type="button">示例文档</button>
           </div>
 
-          <details id="fileQueuePanel" class="queue-panel" aria-label="文件队列">
+          <details id="fileQueuePanel" class="queue-panel" aria-label="文件队列" hidden>
             <summary>
               <span>文件队列</span>
               <small>批量任务与失败重试</small>
@@ -101,17 +101,17 @@
             </div>
           </div>
 
-          <textarea id="inputContent" spellcheck="false" placeholder="输入或上传文档内容"></textarea>
+          <textarea id="inputContent" spellcheck="false" placeholder="上传文件或粘贴内容"></textarea>
         </section>
 
         <section class="result-pane">
           <div class="result-toolbar">
             <div class="result-title">
-              <strong>预览</strong>
+              <strong>预览与输出</strong>
               <span id="outputMeta">未生成</span>
             </div>
             <div class="preview-actions">
-              <details class="output-settings">
+              <details class="output-settings" hidden>
                 <summary>导出设置</summary>
                 <div class="output-settings-panel">
                   <label class="compact-field naming-field">
@@ -140,7 +140,7 @@
                 <input id="autoPreviewCheckbox" type="checkbox" />
                 自动预览
               </label>
-              <button id="refreshPreviewButton" class="ghost-button" type="button">刷新</button>
+              <button id="refreshPreviewButton" class="ghost-button" type="button">刷新预览</button>
               <label class="compact-field large-preview-field" hidden>
                 <span>大文件预览</span>
                 <select id="largePreviewModeSelect">
@@ -153,20 +153,19 @@
           </div>
 
           <nav id="workbenchTabs" class="workbench-tabs" aria-label="工作台视图">
-            <button class="tab-button is-active" type="button" data-tab-target="inputPreviewPanel">输入</button>
-            <button class="tab-button" type="button" data-tab-target="documentModelPanel">结构</button>
-            <button class="tab-button" type="button" data-tab-target="outputPreviewPanel">输出</button>
+            <button class="tab-button is-active" type="button" data-tab-target="inputPreviewPanel">预览</button>
+            <button class="tab-button" type="button" data-tab-target="outputPreviewPanel">结果</button>
           </nav>
 
           <div class="viewer-grid single-view">
             <article id="inputPreviewPanel" class="viewer-card workbench-panel is-active">
               <div class="viewer-card-header">
-                <span>Input</span>
+                <span>标准化预览</span>
               </div>
               <div id="htmlPreview" class="preview-frame preview-markdown" aria-label="标准化预览"></div>
             </article>
 
-            <article id="documentModelPanel" class="viewer-card workbench-panel">
+            <article id="documentModelPanel" class="viewer-card workbench-panel" hidden>
               <div class="viewer-card-header">
                 <span>DocumentModel</span>
               </div>
@@ -175,7 +174,7 @@
 
             <article id="outputPreviewPanel" class="viewer-card workbench-panel">
               <div class="viewer-card-header">
-                <span>Output</span>
+                <span>转换结果</span>
                 <button id="openPdfPreviewButton" class="mini-button" type="button">打开 PDF</button>
               </div>
               <section id="outputEditorPanel" class="output-editor-panel" hidden>
@@ -217,7 +216,7 @@
             </article>
           </div>
 
-          <details id="bottomReportPanel" class="bottom-report-panel" aria-label="报告面板">
+          <details id="bottomReportPanel" class="bottom-report-panel" aria-label="报告面板" hidden>
             <summary>
               <span>质量、版本与插件</span>
               <small>Warnings / Quality / Diff / Versions / Plugins</small>

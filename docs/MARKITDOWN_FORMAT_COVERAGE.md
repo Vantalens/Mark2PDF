@@ -26,7 +26,7 @@
 ## 实施优先级
 
 1. Text-based formats：Markdown、HTML、TXT、JSON、CSV、XML。
-2. Image formats：PNG 输入/输出，后续 JPEG/WebP/SVG。
+2. Image formats：PNG 输入已做；文档到 PNG/JPEG 输出必须等待真实视觉渲染器，不能以占位图进入输出矩阵。
 3. ZIP/OOXML 容器基础设施：只作为底层能力。
 4. EPUB：浏览器端 ZIP/XML/XHTML 解析。
 5. Office Open XML：DOCX、XLSX、PPTX。

@@ -8,7 +8,7 @@ const tasks = await readFile("DEVELOPMENT_TASKS.md", "utf8");
 assert.equal(appJs.includes("WORKER_TRANSFERABLE_THRESHOLD_BYTES"), true, "Worker Transferable threshold must be explicit");
 assert.equal(appJs.includes("new TextEncoder().encode(payload.content)"), true, "large text payloads should be encoded into ArrayBuffer before posting");
 assert.equal(appJs.includes("transferList.push(workerPayload.contentBuffer)"), true, "Worker postMessage should transfer ArrayBuffer ownership");
-assert.equal(workerJs.includes("new TextDecoder(\"utf-8\", { fatal: false }).decode(payload.contentBuffer)"), true, "Worker should decode transferred ArrayBuffer content");
+assert.equal(workerJs.includes("decodeTextBytes(new Uint8Array(payload.contentBuffer)"), true, "Worker should decode transferred ArrayBuffer content through the shared encoding detector");
 
 assert.equal(appJs.includes("VIRTUAL_LIST_ITEM_LIMIT"), true, "virtual list limit must be explicit");
 assert.equal(appJs.includes("renderVirtualTextList(warningsList"), true, "warnings list should use virtual rendering");

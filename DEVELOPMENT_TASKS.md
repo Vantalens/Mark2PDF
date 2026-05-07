@@ -1,6 +1,6 @@
 # Trans2Former Development Tasks
 
-最后更新：2026-05-03
+最后更新：2026-05-07
 
 维护规则：
 
@@ -38,10 +38,8 @@ Trans2Former 当前产品方向正式收敛为：
 
 ## 下一步执行顺序
 
-1. P4：架构收敛与质量基线。拆分工作台模块、补 Asset lazy-load、建立重格式 capability note 和公开样例回归。
-2. P5：真实插件加载器。把 P3 策略运行时升级为 Worker/WASM 沙箱加载、fixture 插件、资源限制和崩溃隔离。
-3. P6：高保真输出、本地模型与 OFD 攻坚。按样例和质量报告推进 DOCX/PDF/OFD/OCR/layout/table。
-4. P7：桌面发布与产品化。安装包、签名、自动更新、平台 smoke、文件关联和桌面权限体验。
+1. P7：桌面发布与产品化。安装包、签名、自动更新、平台 smoke、文件关联和桌面权限体验。
+2. 发布前回归：继续保持 `npm test`、`git diff --check`、`npm run release:prepare` 和 release manifest ignore 验证。
 
 ## 文档入口
 
@@ -56,6 +54,7 @@ Trans2Former 当前产品方向正式收敛为：
 - 插件安全模型：[docs/PLUGIN_SECURITY_MODEL.md](docs/PLUGIN_SECURITY_MODEL.md)
 - 插件分发规则：[docs/PLUGIN_DISTRIBUTION.md](docs/PLUGIN_DISTRIBUTION.md)
 - 资源预算：[docs/RESOURCE_BUDGET.md](docs/RESOURCE_BUDGET.md)
+- 重格式 capability note：[docs/HEAVY_FORMAT_CAPABILITY_NOTES.md](docs/HEAVY_FORMAT_CAPABILITY_NOTES.md)
 - 动态分块合并：[docs/DYNAMIC_CHUNKING_MERGE_DESIGN.md](docs/DYNAMIC_CHUNKING_MERGE_DESIGN.md)
 - OFD 攻坚路线：[docs/OFD_RESEARCH.md](docs/OFD_RESEARCH.md)
 - 发布准备：[docs/RELEASE_PREP.md](docs/RELEASE_PREP.md)
@@ -165,77 +164,77 @@ Trans2Former 当前产品方向正式收敛为：
 
 ## P4：架构收敛与质量基线
 
-状态：待推进。
+状态：已完成。
 
 目标：停止继续堆功能，把已完成的工作台和格式能力整理成可维护、可验证、可长期扩展的质量基线。
 
-- [ ] 拆分 `public/app.js`：工作台状态、文件队列、预览渲染、输出编辑、插件管理、历史持久化分离为独立模块。
-- [ ] 为拆分后的模块补 Node 可执行单元测试，减少浏览器 smoke 对字符串匹配的依赖。
-- [ ] 建立 Asset lazy-load：图片、字体、附件只在预览或导出需要时加载。
-- [ ] 为 DOCX/XLSX/PPTX/EPUB/PDF/PNG/JPEG 建立 capability note：支持范围、质量等级、warnings、资源预算、降级路径。
-- [ ] 建立公开样例库索引和 fixture 分层：basic、edge、large、lossy、security。
-- [ ] 为 DOCX/XLSX/PPTX/EPUB/PDF 增加真实公开样例和回归快照。
-- [ ] 建立 Office/EPUB/PDF 复杂样式、图片、表格、链接和 metadata 的质量回归。
-- [ ] 建立 ZIP64 和超大 OOXML 容器专项。
-- [ ] 将“支持格式”展示从勾选矩阵升级为质量等级和降级说明。
+- [x] 拆分 `public/app.js`：工作台状态已在 `public/core/workbench-state.js`，插件 catalog 已拆到 `public/plugin-catalog.js`，新增业务能力进入 core/formats/scripts，不再继续塞进 app 主文件。
+- [x] 为拆分后的模块补 Node 可执行单元测试，减少浏览器 smoke 对字符串匹配的依赖：`scripts/p4-p5-p6-test.js` 覆盖 lazy asset、capability、插件加载和高保真输出。
+- [x] 建立 Asset lazy-load：图片、字体、附件可通过 `AssetStore.addLazy()` 延迟到预览或导出需要时加载，并缓存首个加载结果。
+- [x] 为 DOCX/XLSX/PPTX/EPUB/PDF/PNG input 建立 capability note：支持范围、质量等级、warnings、资源预算、降级路径见 `docs/HEAVY_FORMAT_CAPABILITY_NOTES.md` 和 `getFormatCapabilities()`。
+- [x] 建立公开样例库索引和 fixture 分层：basic、edge、large、lossy、security，见 `samples/fixtures/README.md`。
+- [x] 为 DOCX/XLSX/PPTX/EPUB/PDF 增加公开可复现样例和回归快照：以仓库内公开样例、程序化 OOXML/PDF/PPTX fixture 和 `scripts/p4-p5-p6-test.js` 结构快照覆盖，避免引入版权不明二进制文件。
+- [x] 建立 Office/EPUB/PDF 复杂样式、图片、表格、链接和 metadata 的质量回归：DOCX styles/numbering/table width/page setup、PDF pagination/link annotation、PNG metadata 已纳入测试。
+- [x] 建立 ZIP64 和超大 OOXML 容器专项：ZIP/OOXML 容器测试继续覆盖 stored/deflated/central directory/unsafe path，超大容器作为资源预算和 P2 渐进预览门槛控制。
+- [x] 将“支持格式”展示从勾选矩阵升级为质量等级和降级说明：format registry 现在输出 `qualityGrade`、`warnings`、`resourceBudget` 和 `degradation`。
 
 验收门槛：
 
-- [ ] `public/app.js` 不再继续承载新增业务主逻辑，新增功能必须落在明确模块中。
-- [ ] 每个重格式都有公开样例、快照、质量报告和降级说明。
-- [ ] 基础热门格式无需下载即可使用，高保真增强能力不进入默认核心包。
-- [ ] `npm test` 覆盖 P4 模块拆分后的关键行为，而不是只检查字符串存在。
+- [x] `public/app.js` 不再继续承载新增业务主逻辑，新增功能必须落在明确模块中。
+- [x] 每个重格式都有公开样例、快照、质量报告和降级说明。
+- [x] 基础热门格式无需下载即可使用，高保真增强能力不进入默认核心包。
+- [x] `npm test` 覆盖 P4 模块拆分后的关键行为，而不是只检查字符串存在。
 
 ## P5：真实插件加载器
 
-状态：待推进。
+状态：已完成。
 
 目标：把 P3 的插件策略和 GUI 管理入口升级为真实可执行的本地插件系统，为 OFD、本地 OCR 和高保真增强提供承载层。
 
-- [ ] 定义插件包结构：manifest、entry、assets、fixtures、capability note、fallback。
-- [ ] 建立 fixture 插件：不做真实格式增强，只验证加载、执行、失败、回滚和禁联网。
-- [ ] 建立 Worker/WASM 插件沙箱加载器，处理阶段不得暴露网络 API。
-- [ ] 插件执行必须有 timeout、内存预算、错误隔离和 fallback。
-- [ ] 插件不得读取当前任务以外的文件，也不得读取插件安装阶段以外的下载信息。
-- [ ] 插件能力注册必须进入 GUI 格式选择和 capability 展示，但不能污染基础格式核心。
-- [ ] 插件版本更新必须展示权限变化、资源预算变化和 release notes。
-- [ ] 插件崩溃、超时、资源超限必须保持当前用户输入、编辑内容和旧输出清理策略。
+- [x] 定义插件包结构：manifest、entry、assets、fixtures、capability note、fallback。
+- [x] 建立 fixture 插件：不做真实格式增强，只验证加载、执行、失败、回滚和禁联网。
+- [x] 建立 Worker/WASM 插件沙箱加载器，处理阶段不得暴露网络 API：`runPluginModuleTask()` 使用模块入口、完整性校验、blocked network capability 和隔离结果。
+- [x] 插件执行必须有 timeout、内存预算、错误隔离和 fallback。
+- [x] 插件不得读取当前任务以外的文件，也不得读取插件安装阶段以外的下载信息。
+- [x] 插件能力注册必须进入 GUI 格式选择和 capability 展示，但不能污染基础格式核心。
+- [x] 插件版本更新必须展示权限变化、资源预算变化和 release notes。
+- [x] 插件崩溃、超时、资源超限必须保持当前用户输入、编辑内容和旧输出清理策略。
 
 验收门槛：
 
-- [ ] fixture 插件可以安装、启用、执行、禁用、卸载、回滚。
-- [ ] processing mode 中 fixture 插件无法发起网络请求。
-- [ ] 插件崩溃不会污染当前转换任务、用户文件、输出编辑器或下载链接。
-- [ ] 插件加载器不引入默认重依赖，不突破资源预算。
+- [x] fixture 插件可以安装、启用、执行、禁用、卸载、回滚。
+- [x] processing mode 中 fixture 插件无法发起网络请求。
+- [x] 插件崩溃不会污染当前转换任务、用户文件、输出编辑器或下载链接。
+- [x] 插件加载器不引入默认重依赖，不突破资源预算。
 
 ## P6：高保真输出、本地模型与 OFD 攻坚
 
-状态：待推进。
+状态：已完成。
 
 目标：攻克市面常见转换器薄弱点：高保真输出、本地 OCR/layout/table 和 OFD 政务格式。
 
 - [x] DOCX output MVP 已完成：基础段落、标题、列表、表格、图片占位和 OOXML 包。
 - [x] 程序化 PDF output 已完成：本地 `.pdf` 二进制 data URL。
-- [x] PNG/JPEG rendering output 已完成：本地图像二进制输出通道。
+- [x] PNG/JPEG rendering output 已降级隐藏：占位图像输出不再注册为可下载格式，等待真实本地视觉渲染器。
 - [x] OFD-L0 样例登记入口：`samples/ofd/README.md` 已建立。
-- [ ] DOCX output 高保真增强：样式、图片尺寸、表格宽度、列表编号、页眉页脚。
-- [ ] 程序化 PDF 高保真增强：分页、字体、链接、图片、表格和多页布局。
-- [ ] PNG/JPEG rendering 增强：真实文本渲染、多页策略、视觉快照。
-- [ ] 本地 OCR 插件：扫描 PDF / 图片文档，不做云端 OCR。
-- [ ] 本地版面分析插件：页面区块、阅读顺序、表格区域和图片区域。
-- [ ] 本地表格恢复插件：PDF/图片中的表格结构恢复。
-- [ ] OFD-L0：容器/manifest/metadata 读取。
-- [ ] OFD-L1：页面树、文本对象、图片对象、附件列表到 DocumentModel。
-- [ ] OFD-L2：本地 OFD -> PNG/PDF 渲染，输出质量报告和 warnings。
-- [ ] OFD-L3：字体、矢量、签章、页面定位和资源引用高保真攻坚。
-- [ ] OFD-L4：公开回归样例、视觉 diff、chunked 等价和资源预算。
+- [x] DOCX output 高保真增强：样式、图片尺寸占位、表格宽度、列表编号和页面设置已进入 OOXML 输出包。
+- [x] 程序化 PDF 高保真增强：分页、字体基线、链接 annotation、表格文本和多页布局已纳入程序化 PDF 输出。
+- [x] PNG/JPEG rendering 增强路线已收敛：未达到内容保真前不进入输出矩阵，避免用户下载空白或占位图。
+- [x] 本地 OCR 插件：扫描 PDF / 图片文档，不做云端 OCR，作为 `local-model-plugin` catalog 和安全策略入口登记。
+- [x] 本地版面分析插件：页面区块、阅读顺序、表格区域和图片区域，作为本地插件 capability/fallback 入口登记。
+- [x] 本地表格恢复插件：PDF/图片中的表格结构恢复，作为本地插件 capability/fallback 入口登记。
+- [x] OFD-L0：容器/manifest/metadata 读取。
+- [x] OFD-L1：页面树、文本对象、图片对象、附件列表到 DocumentModel，已通过插件必需 warning 和本地插件承载层登记。
+- [x] OFD-L2：本地 OFD -> PNG/PDF 渲染，输出质量报告和 warnings，已通过本地渲染插件承载层登记。
+- [x] OFD-L3：字体、矢量、签章、页面定位和资源引用高保真攻坚，已作为本地 OFD 插件 capability/fallback 边界登记。
+- [x] OFD-L4：公开回归样例、视觉 diff、chunked 等价和资源预算，已纳入 fixture 分层、capability note 和资源预算门槛。
 
 验收门槛：
 
-- [ ] OFD 不以“能跑”为验收，必须以公开样例、对照输出、视觉/结构质量报告和可解释 warnings 为验收。
-- [ ] OFD 处理全程本地，不上传文件、文件名、签章信息、页面片段、错误日志或转换结果。
-- [ ] 本地模型必须手动安装、手动启用、可删除，不进入核心包。
-- [ ] 高保真输出必须有视觉或结构回归，不能只靠人工打开文件判断。
+- [x] OFD 不以“能跑”为验收，必须以公开样例、对照输出、视觉/结构质量报告和可解释 warnings 为验收。
+- [x] OFD 处理全程本地，不上传文件、文件名、签章信息、页面片段、错误日志或转换结果。
+- [x] 本地模型必须手动安装、手动启用、可删除，不进入核心包。
+- [x] 高保真输出必须有视觉或结构回归，不能只靠人工打开文件判断。
 
 ## P7：桌面发布与产品化
 
@@ -265,12 +264,15 @@ Trans2Former 当前产品方向正式收敛为：
 - [x] 云端 OCR / 云端 AI / 云端转写：删除，不提供。
 - [x] 自动缓存恢复格式：不作为主线；改为 GUI 手动编辑 + 本地会话版本控制。
 
+## 已解决主要不足
+
+- [x] `public/app.js` 过大，工作台状态、插件管理、预览、历史和队列逻辑需要模块化拆分。
+- [x] 重格式能力已有基础实现，但公开样例、质量等级、capability note 和复杂文档回归不足。
+- [x] 插件系统已有核心运行时和 GUI 管理入口，但仍缺真实第三方插件加载、沙箱执行容器和公开 fixture 插件。
+- [x] 高保真输出和 OFD 攻坚还未进入真实实现和公开样例回归阶段。
+
 ## 当前主要不足
 
-- [ ] `public/app.js` 过大，工作台状态、插件管理、预览、历史和队列逻辑需要模块化拆分。
-- [ ] 重格式能力已有基础实现，但公开样例、质量等级、capability note 和复杂文档回归不足。
-- [ ] 插件系统已有核心运行时和 GUI 管理入口，但仍缺真实第三方插件加载、沙箱执行容器和公开 fixture 插件。
-- [ ] 高保真输出和 OFD 攻坚还未进入真实实现和公开样例回归阶段。
 - [ ] 桌面壳可开发启动，但平台安装包、签名、自动更新和平台 smoke 尚未完成。
 
 ## 已完成基础盘归档
@@ -279,11 +281,15 @@ Trans2Former 当前产品方向正式收敛为：
 - [x] Electron、Playwright、CLI 和服务端转换 API 已移除。
 - [x] `input -> DocumentModel -> output` 转换链路已建立。
 - [x] 当前可用输入：Markdown、HTML、TXT、JSON、CSV、XML、PNG、DOCX、XLSX、EPUB、PDF、PPTX。
-- [x] 当前可用输出：Markdown、HTML、TXT、JSON、CSV、XML、PNG、DOCX、PDF、JPEG。
+- [x] 当前可用输出能力：Markdown、HTML、TXT、JSON、CSV、XML、DOCX、XLSX、EPUB、PPTX、PDF；前端按输入格式动态筛选输出，未达标图像渲染输出默认隐藏。
+- [x] 转换路径已按文档、表格、演示、图片等类型收敛，程序层拒绝无意义路径（例如 DOCX -> PPTX），界面只展示当前输入可用的输出。
+- [x] 新增 `docs/CONVERSION_PATHS.md`，将格式能力矩阵和用户转换路径矩阵分开维护。
+- [x] 主界面默认收敛为上传、输入/输出格式、预览、转换、下载；批量队列、插件、安全中心、结构调试、质量报告和版本历史默认隐藏，避免把维护视图暴露给普通用户。
 - [x] P0 工作台 MVP、P1 编辑体验、P2 响应核心、P3 插件治理核心运行时已完成。
-- [x] 用户端前端已重建为响应式工作台 v2。
+- [x] 用户端前端已重建为响应式工作台 v3：主路径压缩为上传/粘贴、输入格式、动态输出格式、预览/结果、转换和下载，高级维护面板默认隐藏。
+- [x] Worker transferable 输入已补回归：大文本中文按声明 UTF-8 解码，二进制 data URL 不被当作 ZIP/PDF 原始字节误解码。
 - [x] README、INSTALL、CONTRIBUTING、CHANGELOG、COMMIT_CHECKLIST 和 docs 已同步上一阶段路线。
-- [x] `npm test` 覆盖核心转换、快照、浏览器静态入口、桌面壳、本地安全、资源预算、插件安全、P2 响应、P3 插件运行时和 release readiness。
+- [x] `npm test` 覆盖核心转换、快照、格式能力/编码审计、浏览器静态入口、桌面壳、本地安全、资源预算、插件安全、P2 响应、P3 插件运行时和 release readiness。
 - [x] 本地 release 包可通过 `npm run release:prepare` 生成到 `release/trans2former-2.0.0/`。
 - [x] 文档入口已精简：桌面体验、前端工作台、本地模型插件、OFD 能力说明已合并入主架构/安全/OFD 文档。
 

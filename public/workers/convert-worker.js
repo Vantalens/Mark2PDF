@@ -1,5 +1,6 @@
 import { convertContent } from "../browser-transformer.js";
 import { normalizeConversionError } from "../core/conversion-error.js";
+import { decodeTextBytes } from "../core/text-decoding.js";
 
 const STAGES = [
   { stage: "read", progress: 0.1, message: "正在读取输入" },
@@ -11,21 +12,27 @@ const STAGES = [
 ];
 
 function postProgress(id, stageInfo) {
-  self.postMessage({ id, type: "progress", ...stageInfo });
+  workerScope?.postMessage({ id, type: "progress", ...stageInfo });
 }
 
-function normalizeWorkerPayload(payload) {
+export function normalizeWorkerPayload(payload) {
   if (!payload?.contentBuffer) {
     return payload;
   }
   return {
     ...payload,
-    content: new TextDecoder("utf-8", { fatal: false }).decode(payload.contentBuffer),
+    content: decodeTextBytes(new Uint8Array(payload.contentBuffer), {
+      fileName: payload.fileName || "",
+      encoding: payload.contentEncoding || "utf-8",
+      trustEncoding: true,
+    }).text,
     contentBuffer: undefined,
   };
 }
 
-self.addEventListener("message", (event) => {
+const workerScope = typeof self !== "undefined" ? self : null;
+
+workerScope?.addEventListener("message", (event) => {
   const { id, payload } = event.data || {};
   if (!id || !payload) {
     return;
@@ -39,11 +46,11 @@ self.addEventListener("message", (event) => {
     const result = convertContent(normalizeWorkerPayload(payload));
     postProgress(id, STAGES[4]);
     postProgress(id, STAGES[5]);
-    self.postMessage({ id, type: "progress", stage: "complete", progress: 1, message: "转换完成" });
-    self.postMessage({ id, type: "result", result });
+    workerScope.postMessage({ id, type: "progress", stage: "complete", progress: 1, message: "转换完成" });
+    workerScope.postMessage({ id, type: "result", result });
   } catch (error) {
     const conversionError = normalizeConversionError(error);
-    self.postMessage({
+    workerScope.postMessage({
       id,
       type: "error",
       error: {

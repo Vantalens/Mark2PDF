@@ -1,6 +1,7 @@
 {
   "schemaVersion": "trans2former.document.v1",
   "title": "empty.md",
+  "sourceFormat": "md",
   "from": "md",
   "blocks": [],
   "assets": [],

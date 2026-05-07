@@ -17,6 +17,16 @@ export function readJson({ content, title = "document", format = "json" }) {
     });
   }
 
+  if (parsed && parsed.schemaVersion === "trans2former.document.v1" && Array.isArray(parsed.blocks)) {
+    return createDocumentModel({
+      title: parsed.title || title,
+      sourceFormat: parsed.sourceFormat || format,
+      blocks: parsed.blocks,
+      assets: parsed.assets || [],
+      metadata: parsed.metadata || {},
+    });
+  }
+
   return createDocumentModel({
     title,
     sourceFormat: format,
@@ -39,6 +49,7 @@ export function writeJson({ model, title = model.title }) {
     data: `${JSON.stringify({
       schemaVersion: model.schemaVersion,
       title,
+      sourceFormat: model.sourceFormat,
       from: model.sourceFormat,
       blocks: model.blocks,
       assets: model.assets,
