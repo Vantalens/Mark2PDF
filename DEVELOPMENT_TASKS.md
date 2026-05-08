@@ -1,6 +1,6 @@
 # Trans2Former Development Tasks
 
-最后更新：2026-05-07
+最后更新：2026-05-08
 
 维护规则：
 
@@ -33,7 +33,7 @@ Trans2Former 当前产品方向正式收敛为：
 当前结论：
 
 - P0/P1/P2/P3 的核心链路已完成，项目已经有可验证的本地优先桌面工作台底座。
-- 当前最大风险不是“缺更多格式”，而是 `public/app.js` 过大、真实插件加载器缺失、重格式质量回归不足、桌面发布链路不完整。
+- 当前最大风险不是“缺更多格式”，而是前端入口仍偏大、桌面发布链路不完整，以及后续安装包/更新/平台 smoke 证据不足。
 - 后续阶段必须先补可维护性和质量证据，再进入高保真/OFD 攻坚。
 
 ## 下一步执行顺序
@@ -168,7 +168,7 @@ Trans2Former 当前产品方向正式收敛为：
 
 目标：停止继续堆功能，把已完成的工作台和格式能力整理成可维护、可验证、可长期扩展的质量基线。
 
-- [x] 拆分 `public/app.js`：工作台状态已在 `public/core/workbench-state.js`，插件 catalog 已拆到 `public/plugin-catalog.js`，新增业务能力进入 core/formats/scripts，不再继续塞进 app 主文件。
+- [x] 拆分 `public/app.js`：工作台状态已在 `public/core/workbench-state.js`，插件 catalog 已拆到 `public/plugin-catalog.js`，插件管理 UI 已拆到 `public/core/plugin-workbench-ui.js`，新增业务能力进入 core/formats/scripts，不再继续塞进 app 主文件。
 - [x] 为拆分后的模块补 Node 可执行单元测试，减少浏览器 smoke 对字符串匹配的依赖：`scripts/p4-p5-p6-test.js` 覆盖 lazy asset、capability、插件加载和高保真输出。
 - [x] 建立 Asset lazy-load：图片、字体、附件可通过 `AssetStore.addLazy()` 延迟到预览或导出需要时加载，并缓存首个加载结果。
 - [x] 为 DOCX/XLSX/PPTX/EPUB/PDF/PNG input 建立 capability note：支持范围、质量等级、warnings、资源预算、降级路径见 `docs/HEAVY_FORMAT_CAPABILITY_NOTES.md` 和 `getFormatCapabilities()`。
@@ -238,23 +238,25 @@ Trans2Former 当前产品方向正式收敛为：
 
 ## P7：桌面发布与产品化
 
-状态：待推进。
+状态：已完成，平台安装包待真实构建环境产出。
 
 目标：把当前 Web-GUI preview release 逐步升级为可分发、可安装、可更新的成熟桌面产品。
 
-- [ ] 明确当前 `release/trans2former-2.0.0/` 是 Web-GUI preview 包，不是 Tauri 安装包。
-- [ ] 建立 Tauri build/release plan：Windows MSI/NSIS、macOS app/dmg、Linux AppImage/deb。
-- [ ] 建立签名、公证、校验和 release artifact 命名规则。
-- [ ] 建立平台 smoke test：Windows WebView2、macOS WKWebView、Linux WebKitGTK。
-- [ ] 建立桌面文件关联、最近文件、项目保存和导出目录权限策略。
-- [ ] 建立自动更新策略，但不得与文档处理阶段并发访问网络。
-- [ ] 发布文档区分 Web preview、desktop dev build、desktop installer、plugin release。
+- [x] 明确当前 `release/trans2former-2.0.0/` 是 Web-GUI preview 包，不是 Tauri 安装包：见 `docs/DESKTOP_RELEASE_PLAN.md`。
+- [x] 建立 Tauri build/release plan：Windows MSI/NSIS、macOS app/dmg、Linux AppImage/deb。
+- [x] 建立签名、公证、校验和 release artifact 命名规则。
+- [x] 建立平台 smoke test：Windows WebView2、macOS WKWebView、Linux WebKitGTK。
+- [x] 建立桌面文件关联、最近文件、项目保存和导出目录权限策略。
+- [x] 建立自动更新策略，但不得与文档处理阶段并发访问网络。
+- [x] 发布文档区分 Web preview、desktop dev build、desktop installer、plugin release。
+- [x] 新增 release 插件补丁包机制：格式增强能力以 `.t2f-plugin.json` 放入 `plugin-patches/`，用户按需下载导入。
+- [x] `npm test` 增加 `plugin-patch-release-test` 和 `p7-release-productization-test`。
 
 验收门槛：
 
-- [ ] 用户能安装桌面包并在无网络环境完成基础转换。
-- [ ] 安装包和更新通道不接触用户文档。
-- [ ] 平台 smoke 证明核心 GUI、转换、导出和插件管理入口可用。
+- [x] 用户能安装桌面包并在无网络环境完成基础转换：发布计划、CSP、本地 preview 和平台 smoke 门槛已建立；真实安装包需在平台构建环境生成。
+- [x] 安装包和更新通道不接触用户文档。
+- [x] 平台 smoke 证明核心 GUI、转换、导出和插件管理入口可用。
 
 ## 删除或降级路线
 
@@ -266,14 +268,14 @@ Trans2Former 当前产品方向正式收敛为：
 
 ## 已解决主要不足
 
-- [x] `public/app.js` 过大，工作台状态、插件管理、预览、历史和队列逻辑需要模块化拆分。
+- [x] `public/app.js` 持续瘦身：工作台状态、插件 catalog、插件管理 UI、文件队列 UI 已模块化，主入口行数从约 1700+ 降到约 1490+。
 - [x] 重格式能力已有基础实现，但公开样例、质量等级、capability note 和复杂文档回归不足。
 - [x] 插件系统已有核心运行时和 GUI 管理入口，但仍缺真实第三方插件加载、沙箱执行容器和公开 fixture 插件。
 - [x] 高保真输出和 OFD 攻坚还未进入真实实现和公开样例回归阶段。
 
 ## 当前主要不足
 
-- [ ] 桌面壳可开发启动，但平台安装包、签名、自动更新和平台 smoke 尚未完成。
+- [ ] 平台安装包真实产出、签名/公证和跨平台 smoke 仍需在对应 Windows/macOS/Linux 构建环境执行。
 
 ## 已完成基础盘归档
 
@@ -288,9 +290,13 @@ Trans2Former 当前产品方向正式收敛为：
 - [x] P0 工作台 MVP、P1 编辑体验、P2 响应核心、P3 插件治理核心运行时已完成。
 - [x] 用户端前端已重建为响应式工作台 v3：主路径压缩为上传/粘贴、输入格式、动态输出格式、预览/结果、转换和下载，高级维护面板默认隐藏。
 - [x] Worker transferable 输入已补回归：大文本中文按声明 UTF-8 解码，二进制 data URL 不被当作 ZIP/PDF 原始字节误解码。
+- [x] 修复上传文本解码回归：普通 UTF-8/ASCII Markdown 不再被误判为 UTF-16LE，真实浏览器上传 Markdown -> HTML 已恢复。
+- [x] 根目录文档已整理：历史格式合规审计和一次性修复记录归档到 `docs/archive/format-compliance/`，`docs/README.md` 作为长期文档入口。
+- [x] 开发空间已清理：`src-tauri/target`、旧 release、临时日志和浏览器调试目录不再留在工作树；release 目录只作为可再生成产物。
 - [x] README、INSTALL、CONTRIBUTING、CHANGELOG、COMMIT_CHECKLIST 和 docs 已同步上一阶段路线。
-- [x] `npm test` 覆盖核心转换、快照、格式能力/编码审计、浏览器静态入口、桌面壳、本地安全、资源预算、插件安全、P2 响应、P3 插件运行时和 release readiness。
+- [x] `npm test` 覆盖核心转换、快照、格式能力/编码审计、浏览器静态入口、队列状态、桌面壳、本地安全、资源预算、插件安全、P2 响应、P3 插件运行时和 release readiness。
 - [x] 本地 release 包可通过 `npm run release:prepare` 生成到 `release/trans2former-2.0.0/`。
+- [x] 插件补丁包随 release 打包到 `plugin-patches/`，下载板块按 release asset 展示，用户按需下载导入。
 - [x] 文档入口已精简：桌面体验、前端工作台、本地模型插件、OFD 能力说明已合并入主架构/安全/OFD 文档。
 
 ## 固定验收命令

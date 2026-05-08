@@ -60,8 +60,37 @@ function countMojibakeHints(text) {
   return (String(text).match(/[ÃÂ¤åæçèéï¿½]/g) || []).length;
 }
 
-function scoreDecodedText(text) {
-  return countReplacement(text) * 100 + countMojibakeHints(text) * 8 - countCjk(text) * 2;
+function countPrivateUse(text) {
+  return (String(text).match(/[\ue000-\uf8ff]/g) || []).length;
+}
+
+function countControl(text) {
+  return (String(text).match(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g) || []).length;
+}
+
+function asciiPrintableRatio(text) {
+  const value = String(text || "");
+  if (!value.length) return 0;
+  const printable = (value.match(/[\u0009\u000a\u000d\u0020-\u007e]/g) || []).length;
+  return printable / value.length;
+}
+
+function scoreDecodedText(text, encoding) {
+  const value = String(text || "");
+  let score = countReplacement(value) * 100
+    + countMojibakeHints(value) * 8
+    + countPrivateUse(value) * 40
+    + countControl(value) * 20;
+  if (asciiPrintableRatio(value) > 0.75) {
+    score -= 20;
+  }
+  if (encoding === "utf-8" && countReplacement(value) === 0) {
+    score -= 5;
+  }
+  if (encoding.startsWith("utf-16") && value.length > 0 && countCjk(value) / value.length > 0.6) {
+    score -= 10;
+  }
+  return score;
 }
 
 function candidateEncodings({ declaredEncoding = "", fileName = "", mime = "" } = {}) {
@@ -104,7 +133,7 @@ export function decodeTextBytes(bytesLike, { fileName = "", mime = "", encoding 
   const decoded = candidates
     .map((candidate) => ({ encoding: candidate, text: safeDecode(bytes, candidate) }))
     .filter((item) => item.text)
-    .sort((a, b) => scoreDecodedText(a.text) - scoreDecodedText(b.text));
+    .sort((a, b) => scoreDecodedText(a.text, a.encoding) - scoreDecodedText(b.text, b.encoding));
   const best = decoded[0] || { encoding: "utf-8", text: safeDecode(bytes, "utf-8") };
   return {
     ...best,

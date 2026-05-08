@@ -89,14 +89,15 @@ npm run release:prepare
 
 ```text
 release/trans2former-2.0.0/
+release/trans2former-2.0.0/plugin-patches/
 ```
 
-`release/` 默认不提交 GitHub，用于后续创建 GitHub release 前检查发布素材。
+`release/` 默认不提交 GitHub，用于后续创建 GitHub release 前检查发布素材。格式增强能力以 `.t2f-plugin.json` 插件补丁包放在 `plugin-patches/`，用户按需下载后通过“导入本地插件包”安装。
 
 ## 当前限制
 
 1. PDF 当前支持程序化二进制输出，不再依赖浏览器打印作为主要路径。
-2. DOCX、XLSX、EPUB、PDF text extraction、PPTX input 已完成 P3；DOCX/PDF/PNG/JPEG output 已完成 P4 基线；OFD 已升级为 P5 战略攻坚格式，当前 release 尚未发布 OFD 可用转换功能。
+2. DOCX、XLSX、EPUB、PDF text extraction、PPTX input 已完成 P3；DOCX/PDF output 已完成 P4/P6 基线；OFD 和本地 OCR 增强以 release 插件补丁包形式按需安装。
 3. 不需要安装 Office、LibreOffice、Pandoc、Playwright 或桌面壳程序。
 4. 不提供远程 OCR、远程转写、远程 AI 增强或云端文档处理；本地模型和 OFD 高保真渲染只能作为可删除、可禁用、可回滚的本地插件。
 

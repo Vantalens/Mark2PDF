@@ -67,6 +67,8 @@ function assertPdfOutput(result) {
   const pdfText = Buffer.from(bytes).toString("latin1");
   assert.equal(pdfText.startsWith("%PDF-"), true, "PDF must start with a PDF header");
   assert.match(pdfText, /\/Type0|\/CIDFontType0|\/UniGB-UCS2-H/, "PDF must use a Unicode/CJK-capable font path");
+  assert.match(pdfText, /\/Title <FEFF/, "PDF metadata title must use UTF-16BE hex to avoid mojibake in browser viewers");
+  assert.doesNotMatch(pdfText, /\/Title \([^)]*[\x80-\xff]/, "PDF title must not write non-ASCII text as a literal string");
   assert.match(pdfText, /%%EOF\s*$/, "PDF must end with EOF marker");
 }
 
@@ -118,6 +120,21 @@ for (const [from, source] of Object.entries(sourceByFormat)) {
     }
   }
 }
+
+const chinesePdfTitle = convertContent({
+  content: textFixture,
+  from: "md",
+  to: "pdf",
+  title: "期中考试备考指导.md",
+  fileName: "期中考试备考指导.md",
+});
+const chinesePdfText = Buffer.from(bytesFromDataUrl(chinesePdfTitle.data).bytes).toString("latin1");
+assert.match(
+  chinesePdfText,
+  /\/Title <FEFF671F4E2D80038BD55907800363075BFC002E006D0064>/,
+  "Chinese PDF titles must be encoded as UTF-16BE hex with BOM"
+);
+assert.equal(chinesePdfText.includes("/Title (期中考试备考指导.md)"), false, "Chinese PDF titles must not be literal strings");
 
 for (const from of ["md", "html", "txt", "json", "xml", "csv", "docx", "xlsx", "epub", "pdf", "pptx", "png"]) {
   assertImageOutputNotExposed(from, "jpeg");

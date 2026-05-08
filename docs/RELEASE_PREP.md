@@ -1,8 +1,8 @@
 # Release Prep
 
-版本：v0.1.0
+版本：v0.2.0
 状态：生效
-最后更新：2026-04-30
+最后更新：2026-05-08
 
 本文记录 Trans2Former 上传 GitHub 与后续 GitHub release 的准备规则。
 
@@ -12,7 +12,7 @@
 - 发布前必须运行 `npm test`。
 - 插件能力必须通过 `scripts/plugin-security-test.js`，确保 processing mode 禁联网。
 - 发布包不得包含 `node_modules/`、`.git/`、`.local/`、日志、缓存、用户文档、测试截图或临时导出文件。
-- release 包只包含源码、样例、测试、开发文档和静态浏览器应用资源。
+- release 包只包含源码、样例、测试、开发文档、静态浏览器应用资源和按需安装的插件补丁包。
 
 ## 本地准备命令
 
@@ -25,18 +25,23 @@ npm run release:prepare
 ```text
 release/trans2former-<version>/
 release/trans2former-<version>/RELEASE_MANIFEST.json
+release/trans2former-<version>/plugin-patches/*.t2f-plugin.json
 ```
 
-`release/` 是本地发布暂存目录，默认不提交 GitHub。后续需要发布 GitHub release 时，从该目录打包或上传。
+`release/` 是本地发布暂存目录，默认不提交 GitHub。后续需要发布 GitHub release 时，从该目录打包或上传。插件格式增强能力以 `.t2f-plugin.json` 补丁包作为 release asset，用户按需下载。
 
 ## GitHub release 流程
 
 1. 确认 `DEVELOPMENT_TASKS.md`、README、CHANGELOG、CONTRIBUTING、INSTALL、COMMIT_CHECKLIST 已同步。
 2. 运行 `npm test`。
 3. 运行 `npm run release:prepare`。
-4. 检查 `release/trans2former-<version>/RELEASE_MANIFEST.json`。
+4. 检查 `release/trans2former-<version>/RELEASE_MANIFEST.json` 和 `plugin-patches/`。
 5. 提交源码到 GitHub。
 6. 在 GitHub release 中使用本地 `release/` 目录生成的包作为发布素材。
+
+## P7 桌面发布
+
+桌面安装包、签名、checksum、平台 smoke、自动更新和文件关联规则见 [DESKTOP_RELEASE_PLAN.md](DESKTOP_RELEASE_PLAN.md)。
 
 ## 每次对话同步要求
 

@@ -80,6 +80,8 @@ try {
   assert.equal(registryJs.includes('png: ["html", "txt", "json", "pdf"]'), true, "PNG should stay input-only apart from readable/document outputs");
 
   const appJs = await fetchText(baseUrl, "/app.js");
+  const pluginWorkbenchJs = await fetchText(baseUrl, "/core/plugin-workbench-ui.js");
+  const fileQueueJs = await fetchText(baseUrl, "/core/file-queue-ui.js");
   assert.equal(appJs.includes("renderErrorDetails"), true, "main app should render structured conversion errors");
   assert.equal(appJs.includes("sanitizeErrorDiagnostics"), true, "main app should sanitize copied diagnostics");
   assert.equal(appJs.includes("updateConversionProgress"), true, "main app should update staged conversion progress");
@@ -103,7 +105,8 @@ try {
   assert.equal(appJs.includes("getActiveInputContent"), true, "conversion and preview should read the active raw payload, not textarea display text");
   assert.equal(appJs.includes("createReadableInputDisplay"), true, "binary uploads should render extracted readable text instead of base64 data URLs");
   assert.equal(appJs.includes("inputContent.readOnly = isBinaryInputFormat"), true, "binary upload previews should be read-only to avoid editing extracted display text as raw binary");
-  assert.equal(appJs.includes("createQueueItem"), true, "main app should track queued files as reusable workbench state");
+  assert.equal(appJs.includes("registerQueuedFileState"), true, "main app should delegate queued file state to a reusable module");
+  assert.equal(fileQueueJs.includes("createQueueItem"), true, "file queue module should track queued files as reusable workbench state");
   assert.equal(appJs.includes("renderDocumentModelPanel"), true, "main app should render DocumentModel inspection");
   assert.equal(appJs.includes("renderBottomReports"), true, "main app should render warnings, quality, diff, and versions");
   assert.equal(appJs.includes("chooseOutputDirectory"), true, "main app should expose explicit output directory selection");
@@ -112,11 +115,12 @@ try {
   assert.equal(appJs.includes("showWorkbenchTab"), true, "main app should support narrow-screen workbench tabs");
   assert.equal(appJs.includes("setActiveWorkbenchTab"), true, "main app should keep a single active workbench view on desktop and mobile");
   assert.equal(appJs.includes("TRUSTED_PLUGIN_CATALOG"), true, "P3 should expose a trusted GitHub Releases plugin catalog");
-  assert.equal(appJs.includes("importLocalPluginPackage"), true, "P3 should wire local plugin package import");
-  assert.equal(appJs.includes("openPluginRelease"), true, "P3 should keep plugin downloads in install mode");
-  assert.equal(appJs.includes("setPluginEnabled"), true, "P3 should support enable and disable lifecycle controls");
-  assert.equal(appJs.includes("rollbackPlugin"), true, "P3 should support rollback lifecycle controls");
-  assert.equal(appJs.includes("discoverPluginCapabilities"), true, "P3 should expose plugin capability discovery");
+  assert.equal(appJs.includes("createPluginWorkbenchUi"), true, "main app should delegate plugin UI lifecycle to a module");
+  assert.equal(pluginWorkbenchJs.includes("importLocalPluginPackage"), true, "P3 should wire local plugin package import");
+  assert.equal(pluginWorkbenchJs.includes("openPluginRelease"), true, "P3 should keep plugin downloads in install mode");
+  assert.equal(pluginWorkbenchJs.includes("setPluginEnabled"), true, "P3 should support enable and disable lifecycle controls");
+  assert.equal(pluginWorkbenchJs.includes("rollbackPlugin"), true, "P3 should support rollback lifecycle controls");
+  assert.equal(pluginWorkbenchJs.includes("discoverPluginCapabilities"), true, "P3 should expose plugin capability discovery");
   assert.equal(appJs.includes("docx"), true, "main app should accept DOCX input");
   for (const format of ["doc", "xlsx", "epub", "pdf", "pptx"]) {
     assert.equal(appJs.includes(format), true, `main app should accept ${format.toUpperCase()} input`);

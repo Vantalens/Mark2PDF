@@ -11,7 +11,10 @@ const REQUIRED_FILES = [
   "LICENSE",
   "package.json",
   "docs/RELEASE_PREP.md",
+  "docs/DESKTOP_RELEASE_PLAN.md",
   "scripts/prepare-release.js",
+  "public/plugin-patches/ofd-local-reader-0.2.0.t2f-plugin.json",
+  "public/plugin-patches/local-ocr-basic-0.1.0.t2f-plugin.json",
 ];
 
 for (const file of REQUIRED_FILES) {
@@ -28,6 +31,7 @@ for (const requiredText of [
   "GitHub release",
   "release/",
   "Trans2Former",
+  "plugin-patches",
 ]) {
   assert.equal(releasePrep.includes(requiredText), true, `release prep should mention ${requiredText}`);
 }
@@ -35,6 +39,7 @@ for (const requiredText of [
 const script = await readFile("scripts/prepare-release.js", "utf8");
 assert.equal(script.includes("const releaseRoot = path.join(ROOT, \"release\")"), true);
 assert.equal(script.includes("npm test"), true);
+assert.equal(script.includes("pluginPatchAssets"), true);
 
 const gitignore = await readFile(".gitignore", "utf8");
 assert.equal(gitignore.includes("/release/"), true, "local release directory should stay out of git");

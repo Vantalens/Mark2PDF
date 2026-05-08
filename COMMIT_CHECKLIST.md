@@ -6,6 +6,7 @@
 - [ ] `npm test` 可通过核心转换、浏览器工作台、桌面壳配置、本地安全、资源预算、插件安全和 release readiness 检查。
 - [ ] `npm run desktop:check` 可通过 Tauri scaffold 和最小权限边界检查。
 - [ ] `npm run release:prepare` 可生成本地 `release/trans2former-2.0.0/`。
+- [ ] `release/trans2former-2.0.0/plugin-patches/` 包含 `.t2f-plugin.json` 插件补丁包，且 manifest hash 可校验。
 - [ ] `npm start` 可启动 Web 应用。
 - [ ] 浏览器可访问 `http://localhost:3000`。
 - [ ] 浏览器可访问 `http://localhost:3000/smoke-test.html`。
@@ -26,7 +27,7 @@
 - [ ] 不把 PDF/OCR/Office/AI 等重依赖加入默认 dependencies 或核心路径。
 - [ ] 新增重格式或可选能力时，已按模块插件处理，并提供 manifest、资源预算和失败降级说明。
 - [ ] 插件改动已通过 `scripts/plugin-security-test.js`，并满足 install mode / processing mode 隔离和 no-network processing。
-- [ ] 插件下载/更新改动遵守 GitHub Releases 分发策略，浏览器端和桌面端下载/更新板块不会在 processing mode 联网。
+- [ ] 插件下载/更新改动遵守 release asset 补丁包分发策略，浏览器端和桌面端下载/更新板块不会在 processing mode 联网。
 - [ ] 新增基础免下载格式时，已证明属于高频轻量格式，且未突破默认资源预算。
 
 ## 架构约束
@@ -49,6 +50,7 @@
 - [ ] 长期原则、格式矩阵和架构说明没有继续堆入 `DEVELOPMENT_TASKS.md`，已放入 `docs/` 专题文档。
 - [ ] 若改动涉及定位、测试、安全、格式支持或运行方式，已同步更新 README、INSTALL、CONTRIBUTING、CHANGELOG 和相关 docs。
 - [ ] 若准备上传 GitHub 或发布 release，已检查 [docs/RELEASE_PREP.md](docs/RELEASE_PREP.md) 和本地 `release/` 包。
+- [ ] 若准备发布桌面安装包，已检查 [docs/DESKTOP_RELEASE_PLAN.md](docs/DESKTOP_RELEASE_PLAN.md) 的命名、checksum、平台 smoke、文件关联和自动更新规则。
 - [ ] 检查 `rg -n "Electron|electron|Playwright|playwright|Office|LibreOffice|Pandoc" .` 不包含当前运行依赖说明。
 - [ ] 检查 `npm test` 包含 local security test，且没有新增默认网络发送路径。
 - [ ] 检查 `npm test` 包含 resource budget test，且核心包体积和默认依赖未超预算。

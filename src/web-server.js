@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const publicDir = path.join(projectRoot, "public");
+const isMainModule = process.argv[1] && path.resolve(process.argv[1]) === __filename;
 
 function createApp() {
   const app = express();
@@ -42,4 +43,17 @@ export async function startWebServer(port = Number(process.env.PORT || 3000)) {
 
     server.on("error", reject);
   });
+}
+
+if (isMainModule) {
+  const port = Number(process.env.PORT || 3000);
+
+  startWebServer(port)
+    .then(({ port: actualPort }) => {
+      process.stdout.write(`Trans2Former web server running at http://localhost:${actualPort}\n`);
+    })
+    .catch((error) => {
+      process.stderr.write(`Failed to start web server: ${error.message}\n`);
+      process.exit(1);
+    });
 }

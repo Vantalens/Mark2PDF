@@ -15,17 +15,17 @@ import {
   shouldUseLargeTextPreview,
 } from "./core/input-state.js";
 import {
-  createPluginRecord,
-  discoverPluginCapabilities,
-  importLocalPluginPackage,
-  openPluginRelease,
-  rollbackPlugin,
-  setPluginEnabled,
-  uninstallPlugin,
-} from "./core/plugin-runtime.js";
+  formatFileSize,
+  registerQueuedFileState,
+  renderFileQueue as renderQueueList,
+  retryFailedQueueItemsState,
+  selectAllQueueItemsState,
+} from "./core/file-queue-ui.js";
+import {
+  createPluginWorkbenchUi,
+} from "./core/plugin-workbench-ui.js";
 import {
   buildExportFileName as buildWorkbenchExportFileName,
-  createQueueItem as createWorkbenchQueueItem,
   summarizeQualityReport,
 } from "./core/workbench-state.js";
 import { readBlobAsDecodedText } from "./core/text-decoding.js";
@@ -144,7 +144,6 @@ let outputDraftCommitTimer = null;
 let markdownOutputProfile = "ai-ready";
 let currentResolvedWarnings = new Set();
 let historyPersistenceEnabled = false;
-let installedPlugins = [];
 
 const PREVIEW_DEBOUNCE_MS = 300;
 const LARGE_DOC_THRESHOLD = 12000;
@@ -158,7 +157,6 @@ const VIRTUAL_LIST_ITEM_LIMIT = 160;
 const EDITABLE_OUTPUT_FORMATS = new Set(["md", "html", "txt", "json", "csv", "xml"]);
 const HISTORY_PREFERENCE_KEY = "trans2former.history.optIn";
 const MARKDOWN_PROFILE_PREFERENCE_KEY = "trans2former.markdown.profile";
-const PLUGIN_STATE_KEY = "trans2former.plugins.state";
 const PROGRESS_STAGE_LABELS = {
   idle: "待命",
   read: "读取输入",
@@ -210,23 +208,6 @@ function setOutputMeta(message) {
   outputMeta.textContent = message;
 }
 
-function formatFileSize(bytes) {
-  if (!bytes) {
-    return "0 B";
-  }
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function createQueueItem(file, detectedFormat) {
-  return createWorkbenchQueueItem(file, detectedFormat);
-}
-
 function getActiveQueueItem() {
   return fileQueue.find((item) => item.id === activeQueueItemId) || null;
 }
@@ -241,225 +222,35 @@ function updateActiveQueueItem(patch) {
 }
 
 function renderFileQueue() {
-  if (!fileQueueList) {
-    return;
-  }
-  if (!fileQueue.length) {
-    fileQueueList.innerHTML = '<div class="queue-empty">暂无队列文件</div>';
-    return;
-  }
-
-  fileQueueList.replaceChildren(...fileQueue.map((item) => {
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = `queue-item${item.id === activeQueueItemId ? " is-active" : ""}`;
-    row.dataset.queueId = item.id;
-    const check = document.createElement("span");
-    check.className = "queue-check";
-    check.textContent = item.selected ? "✓" : "";
-    const name = document.createElement("span");
-    name.className = "queue-name";
-    name.textContent = item.name;
-    const meta = document.createElement("span");
-    meta.className = "queue-meta";
-    meta.textContent = `${item.format || "?"} · ${formatFileSize(item.size)}`;
-    const status = document.createElement("span");
-    status.className = "queue-status";
-    status.dataset.status = item.status;
-    status.textContent = item.status;
-    row.append(check, name, meta, status);
-    row.addEventListener("click", () => {
-      activeQueueItemId = item.id;
+  renderQueueList({
+    listElement: fileQueueList,
+    fileQueue,
+    activeQueueItemId,
+    onActivate: (id) => {
+      activeQueueItemId = id;
       renderFileQueue();
-    });
-    return row;
-  }));
-}
-
-function pluginPermissionText(permissions = []) {
-  return permissions.join(", ") || "none";
-}
-
-function pluginResourceText(resources = {}) {
-  return `${formatFileSize(Number(resources.downloadBytes || 0))} / ${Number(resources.maxRuntimeMemoryMb || 0)} MB`;
-}
-
-function readPluginState() {
-  if (typeof window.localStorage === "undefined") {
-    return [];
-  }
-  try {
-    const raw = window.localStorage.getItem(PLUGIN_STATE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writePluginState() {
-  if (typeof window.localStorage === "undefined") {
-    return;
-  }
-  try {
-    window.localStorage.setItem(PLUGIN_STATE_KEY, JSON.stringify(installedPlugins));
-  } catch {
-    setStatus("插件状态保存失败，浏览器可能禁用了本地存储", "info");
-  }
-}
-
-function renderPluginDownloadCenter() {
-  if (!pluginDownloadList) {
-    return;
-  }
-  pluginDownloadList.replaceChildren(...TRUSTED_PLUGIN_CATALOG.map((manifest) => {
-    const row = document.createElement("div");
-    row.className = "plugin-row";
-    const formats = manifest.formats.map((item) => `${item.format}${item.canRead ? " read" : ""}${item.canWrite ? " write" : ""}`).join(", ");
-    row.innerHTML = `
-      <div>
-        <strong>${manifest.name}</strong>
-        <span>${manifest.version} · ${manifest.kind} · ${formats}</span>
-        <small>权限：${pluginPermissionText(manifest.permissions)} · 预算：${pluginResourceText(manifest.resources)} · ${manifest.security.installMode}</small>
-      </div>
-      <button class="mini-button" type="button" data-plugin-download="${manifest.id}">Release</button>
-    `;
-    return row;
-  }));
-}
-
-function renderInstalledPlugins() {
-  if (!pluginInstalledList) {
-    return;
-  }
-  if (!installedPlugins.length) {
-    pluginInstalledList.textContent = "尚未导入本地插件包";
-    return;
-  }
-  pluginInstalledList.replaceChildren(...installedPlugins.map((plugin) => {
-    const row = document.createElement("div");
-    row.className = "plugin-row";
-    row.innerHTML = `
-      <div>
-        <strong>${plugin.name}</strong>
-        <span>${plugin.version} · ${plugin.status} · ${plugin.integrityVerified ? "hash verified" : "hash pending"}</span>
-        <small>${plugin.manifest.security.processingMode} · ${pluginResourceText(plugin.manifest.resources)}</small>
-      </div>
-      <div class="plugin-actions">
-        <button class="mini-button" type="button" data-plugin-toggle="${plugin.id}">${plugin.enabled ? "禁用" : "启用"}</button>
-        <button class="mini-button" type="button" data-plugin-rollback="${plugin.id}">回滚</button>
-        <button class="mini-button" type="button" data-plugin-uninstall="${plugin.id}">卸载</button>
-      </div>
-    `;
-    return row;
-  }));
-}
-
-function renderPluginUpdates() {
-  if (!pluginUpdateList) {
-    return;
-  }
-  const rows = installedPlugins
-    .filter((plugin) => plugin.manifest.updates?.latestVersion && plugin.manifest.updates.latestVersion !== plugin.version)
-    .map((plugin) => {
-      const update = plugin.manifest.updates;
-      const row = document.createElement("div");
-      row.className = "plugin-row";
-      row.innerHTML = `
-        <div>
-          <strong>${plugin.name}</strong>
-          <span>${plugin.version} -> ${update.latestVersion}</span>
-          <small>${update.releaseNotes || "No release notes"} · 权限变化：${pluginPermissionText(update.permissions || [])} · 预算变化：${pluginResourceText(update.resources || {})}</small>
-        </div>
-        <button class="mini-button" type="button" data-plugin-download="${plugin.id}">查看 Release</button>
-      `;
-      return row;
-    });
-  pluginUpdateList.replaceChildren(...(rows.length ? rows : [document.createTextNode("暂无可更新插件")]));
-}
-
-function renderPluginCapabilities() {
-  if (!pluginCapabilityList || !pluginSecuritySummary) {
-    return;
-  }
-  const capabilities = installedPlugins.flatMap((plugin) => discoverPluginCapabilities(plugin));
-  if (!capabilities.length) {
-    pluginCapabilityList.textContent = "尚无插件能力";
-  } else {
-    pluginCapabilityList.textContent = capabilities
-      .map((item) => `${item.pluginName} · ${item.format} · read:${item.canRead} write:${item.canWrite} · ${item.mode} · fallback:${item.fallback?.code || "none"}`)
-      .join("\n");
-  }
-  pluginSecuritySummary.textContent = [
-    "install mode: network allowed, documents blocked",
-    "processing mode: documents allowed, network blocked",
-    `enabled plugins: ${installedPlugins.filter((plugin) => plugin.enabled).length}`,
-    `installed plugins: ${installedPlugins.filter((plugin) => plugin.status !== "uninstalled").length}`,
-  ].join("\n");
-}
-
-function renderPluginRuntime() {
-  renderPluginDownloadCenter();
-  renderInstalledPlugins();
-  renderPluginUpdates();
-  renderPluginCapabilities();
-}
-
-function findPluginById(id) {
-  return installedPlugins.find((plugin) => plugin.id === id) || null;
-}
-
-function upsertPlugin(record) {
-  installedPlugins = [
-    ...installedPlugins.filter((plugin) => plugin.id !== record.id),
-    record,
-  ];
-  writePluginState();
-  renderPluginRuntime();
-}
-
-async function importPluginFromFile(file) {
-  const text = await file.text();
-  const manifest = JSON.parse(text);
-  const bytes = new TextEncoder().encode(text);
-  const record = await importLocalPluginPackage({ manifest, bytes });
-  upsertPlugin(record);
-  setStatus(`插件已导入并完成 manifest/hash 校验：${record.name}`, "success");
+    },
+  });
 }
 
 function registerQueuedFile(file, detectedFormat) {
-  const existing = fileQueue.find((item) => item.name === file.name && item.size === file.size);
-  if (existing) {
-    activeQueueItemId = existing.id;
-    existing.selected = true;
-    existing.format = detectedFormat || existing.format;
-    renderFileQueue();
-    return existing;
-  }
-  const item = createQueueItem(file, detectedFormat);
-  fileQueue.push(item);
-  activeQueueItemId = item.id;
+  const result = registerQueuedFileState(fileQueue, activeQueueItemId, file, detectedFormat);
+  fileQueue = result.fileQueue;
+  activeQueueItemId = result.activeQueueItemId;
   renderFileQueue();
-  return item;
+  return result.item;
 }
 
 function selectAllQueueItems() {
-  const shouldSelect = fileQueue.some((item) => !item.selected);
-  fileQueue = fileQueue.map((item) => ({ ...item, selected: shouldSelect }));
+  fileQueue = selectAllQueueItemsState(fileQueue);
   renderFileQueue();
 }
 
 function retryFailedQueueItems() {
-  let retries = 0;
-  fileQueue = fileQueue.map((item) => {
-    if (item.status !== "failed") {
-      return item;
-    }
-    retries += 1;
-    return { ...item, selected: true, status: "queued", error: "" };
-  });
+  const result = retryFailedQueueItemsState(fileQueue);
+  fileQueue = result.fileQueue;
   renderFileQueue();
-  setStatus(retries ? `已将 ${retries} 个失败任务放回队列` : "没有失败任务可重试", retries ? "success" : "info");
+  setStatus(result.retries ? `已将 ${result.retries} 个失败任务放回队列` : "没有失败任务可重试", result.retries ? "success" : "info");
 }
 
 async function chooseOutputDirectory() {
@@ -1722,54 +1513,11 @@ importPluginInput?.addEventListener("change", (event) => {
   if (!file) {
     return;
   }
-  importPluginFromFile(file).catch((error) => setStatus(error.message, "error"));
+  pluginWorkbench.importPluginFromFile(file).catch((error) => setStatus(error.message, "error"));
   event.target.value = "";
 });
 document.getElementById("bottomReportPanel")?.addEventListener("click", (event) => {
-  const downloadButton = event.target.closest("[data-plugin-download]");
-  if (downloadButton) {
-    const id = downloadButton.dataset.pluginDownload;
-    const manifest = TRUSTED_PLUGIN_CATALOG.find((item) => item.id === id) || findPluginById(id)?.manifest;
-    try {
-      openPluginRelease(manifest, {
-        openExternal: (url) => window.open(url, "_blank", "noopener,noreferrer"),
-        documentContext: { fileName: currentFileName },
-      });
-      setStatus("已打开插件 GitHub Release；安装模式不会读取当前文档", "success");
-    } catch (error) {
-      setStatus(error.message, "error");
-    }
-    return;
-  }
-
-  const toggleButton = event.target.closest("[data-plugin-toggle]");
-  if (toggleButton) {
-    const plugin = findPluginById(toggleButton.dataset.pluginToggle);
-    if (plugin) {
-      upsertPlugin(setPluginEnabled(plugin, !plugin.enabled));
-      setStatus(`${plugin.name} 已${plugin.enabled ? "禁用" : "启用"}`, "success");
-    }
-    return;
-  }
-
-  const rollbackButton = event.target.closest("[data-plugin-rollback]");
-  if (rollbackButton) {
-    const plugin = findPluginById(rollbackButton.dataset.pluginRollback);
-    if (plugin) {
-      upsertPlugin(rollbackPlugin(plugin));
-      setStatus(`${plugin.name} 已回滚到上一可用版本`, "success");
-    }
-    return;
-  }
-
-  const uninstallButton = event.target.closest("[data-plugin-uninstall]");
-  if (uninstallButton) {
-    const plugin = findPluginById(uninstallButton.dataset.pluginUninstall);
-    if (plugin) {
-      upsertPlugin(uninstallPlugin(plugin));
-      setStatus(`${plugin.name} 已卸载`, "info");
-    }
-  }
+  pluginWorkbench.handlePanelClick(event);
 });
 workbenchTabs.addEventListener("click", (event) => {
   const button = event.target.closest("[data-tab-target]");
@@ -1862,6 +1610,20 @@ function bootstrapInitialSample() {
   setStatus("示例已加载，当前转换在浏览器端执行", "success");
 }
 
+const pluginWorkbench = createPluginWorkbenchUi({
+  catalog: TRUSTED_PLUGIN_CATALOG,
+  elements: {
+    downloadList: pluginDownloadList,
+    installedList: pluginInstalledList,
+    updateList: pluginUpdateList,
+    capabilityList: pluginCapabilityList,
+    securitySummary: pluginSecuritySummary,
+  },
+  setStatus,
+  getDocumentContext: () => ({ fileName: currentFileName }),
+  openExternal: (url) => window.open(url, "_blank", "noopener,noreferrer"),
+});
+
 syncFormatOptions();
 historyPersistenceEnabled = readHistoryPersistencePreference();
 if (persistHistoryCheckbox) {
@@ -1871,8 +1633,7 @@ markdownOutputProfile = readMarkdownProfilePreference();
 if (markdownProfileSelect) {
   markdownProfileSelect.value = markdownOutputProfile;
 }
-installedPlugins = readPluginState();
-renderPluginRuntime();
+pluginWorkbench.render();
 bootstrapInitialSample();
 autoPreviewCheckbox.checked = false;
 syncMarkdownProfileControl();

@@ -17,6 +17,11 @@ assert.equal(decoded.encoding, "gb18030");
 const utf8Bom = Uint8Array.from([0xef, 0xbb, 0xbf, ...new TextEncoder().encode("中文,测试")]);
 assert.equal(decodeTextBytes(utf8Bom, { fileName: "sample-utf8.csv" }).text, "中文,测试");
 
+const utf8Markdown = new TextEncoder().encode("# Uploaded\n\nhello from browser");
+const decodedMarkdown = decodeTextBytes(utf8Markdown, { fileName: "uploaded.md", mime: "text/markdown" });
+assert.equal(decodedMarkdown.text, "# Uploaded\n\nhello from browser");
+assert.equal(decodedMarkdown.encoding, "utf-8");
+
 const utf16le = Uint8Array.from([0x2d, 0x4e, 0x87, 0x65]);
 assert.equal(decodeTextBytes(utf16le, { fileName: "sample.txt", mime: "text/plain" }).text, "中文");
 

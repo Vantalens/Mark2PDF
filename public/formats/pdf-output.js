@@ -17,6 +17,10 @@ function utf16BeHex(value) {
     .join("");
 }
 
+function pdfUnicodeString(value) {
+  return `<FEFF${utf16BeHex(value)}>`;
+}
+
 function linesForPdf(model) {
   const text = getPlainText(model).replace(/\r\n?/g, "\n");
   const lines = [];
@@ -65,7 +69,7 @@ function buildPdfBytes(model, title) {
   objects.push(`<< /Type /Font /Subtype /Type0 /BaseFont /STSong-Light /Encoding /UniGB-UCS2-H /DescendantFonts [${cidFontObjectNumber} 0 R] >>`);
   objects.push(`<< /Type /Font /Subtype /CIDFontType0 /BaseFont /STSong-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 2 >> /FontDescriptor ${fontDescriptorObjectNumber} 0 R /DW 1000 >>`);
   objects.push("<< /Type /FontDescriptor /FontName /STSong-Light /Flags 4 /FontBBox [0 -120 1000 880] /ItalicAngle 0 /Ascent 880 /Descent -120 /CapHeight 700 /StemV 80 >>");
-  objects.push(`<< /Title (${escapePdfText(title)}) /Producer (Trans2Former) >>`);
+  objects.push(`<< /Title ${pdfUnicodeString(title)} /Producer (Trans2Former) >>`);
   let output = "%PDF-1.4\n";
   const offsets = [0];
   objects.forEach((object, index) => {

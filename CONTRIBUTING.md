@@ -44,8 +44,7 @@ public/
   index.html              主页面
   styles.css              页面样式
 src/
-  server.js               启动静态 Web 服务
-  web-server.js           Express 静态资源容器
+  web-server.js           Express 静态资源容器和启动入口
 ```
 
 ## 贡献规则

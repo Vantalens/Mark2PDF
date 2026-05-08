@@ -66,6 +66,9 @@
 - 新增 `public/core/workbench-state.js` 和 `scripts/desktop-shell-test.js`，覆盖工作台状态复用与桌面壳配置检查。
 - 新增现代化简洁工作台布局：高级队列、导出设置、质量报告和插件信息默认折叠，右侧预览区改为单视图 tabs，减少首屏信息噪音。
 - P0 桌面启动验收通过：Rust/Cargo 与 Visual Studio Build Tools 环境下，`npm run desktop:dev` 可编译并运行到 `target\debug\trans2former.exe`。
+- 新增 P7 桌面发布计划 `docs/DESKTOP_RELEASE_PLAN.md`，覆盖安装包命名、checksum、平台 smoke、文件关联、自动更新和插件补丁包发布规则。
+- 新增 release 插件补丁包：`public/plugin-patches/*.t2f-plugin.json`，格式增强能力随 release 打包，用户按需下载导入。
+- 新增 `scripts/plugin-patch-release-test.js` 和 `scripts/p7-release-productization-test.js`，覆盖插件补丁包完整性和 P7 发布产品化门禁。
 
 ### 变更
 

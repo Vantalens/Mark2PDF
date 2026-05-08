@@ -79,6 +79,41 @@
         "removable": { "type": "boolean" }
       }
     },
+    "releaseUrl": { "type": "string" },
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel", "packageType", "releaseAsset", "offlineInstall"],
+      "properties": {
+        "channel": { "enum": ["release-asset"] },
+        "packageType": { "const": "trans2former.plugin.patch.v1" },
+        "releaseAsset": { "type": "string" },
+        "offlineInstall": { "type": "boolean" },
+        "modelBundleRequired": { "type": "boolean" }
+      }
+    },
+    "updates": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "latestVersion": { "type": "string" },
+        "releaseNotes": { "type": "string" },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "enum": ["install-network", "cache-plugin", "process-document", "read-assets", "write-output"]
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "downloadBytes": { "type": "number", "minimum": 0 },
+            "maxRuntimeMemoryMb": { "type": "number", "minimum": 0 }
+          }
+        }
+      }
+    },
     "fallback": {
       "type": "object",
       "additionalProperties": false,

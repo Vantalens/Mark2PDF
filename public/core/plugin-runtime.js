@@ -39,7 +39,14 @@ export function createPluginRecord(manifest, { integrityVerified = false, source
 
 export function openPluginRelease(manifest, { openExternal = globalThis.open, documentContext = null } = {}) {
   const policy = getPluginModePolicy("install");
-  assertPluginModeAllows(manifest, "install", "install-network");
+  const validation = validatePluginManifest(manifest);
+  if (!validation.ok) {
+    throw new Error(`Invalid plugin manifest: ${validation.errors.join("; ")}`);
+  }
+  const releaseAssetInstall = manifest.distribution?.channel === "release-asset" && manifest.distribution?.offlineInstall === true;
+  if (!releaseAssetInstall) {
+    assertPluginModeAllows(manifest, "install", "install-network");
+  }
   const releaseUrl = getReleaseUrl(manifest);
   if (!releaseUrl) {
     throw new Error("Plugin releaseUrl is required");
@@ -50,7 +57,7 @@ export function openPluginRelease(manifest, { openExternal = globalThis.open, do
   return {
     mode: "install",
     canAccessDocuments: policy.canAccessDocuments,
-    canUseNetwork: policy.canUseNetwork,
+    canUseNetwork: releaseAssetInstall ? false : policy.canUseNetwork,
     documentFieldsRead: documentContext ? [] : [],
     releaseUrl,
   };

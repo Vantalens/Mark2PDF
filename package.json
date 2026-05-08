@@ -3,15 +3,15 @@
   "version": "2.0.0",
   "description": "Trans2Former: Browser-first multi-format document transformer.",
   "type": "module",
-  "main": "src/server.js",
+  "main": "src/web-server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "web": "node src/server.js",
+    "start": "node src/web-server.js",
+    "web": "node src/web-server.js",
     "release:prepare": "node scripts/prepare-release.js",
     "desktop:check": "node scripts/desktop-shell-test.js",
     "desktop:dev": "npm exec @tauri-apps/cli -- dev",
     "desktop:build": "npm exec @tauri-apps/cli -- build",
-    "test": "node scripts/smoke-test.js && node scripts/conversion-snapshot-test.js && node scripts/conversion-capability-audit-test.js && node scripts/format-integrity-test.js && node scripts/worker-payload-test.js && node scripts/browser-smoke-test.js && node scripts/desktop-shell-test.js && node scripts/local-security-test.js && node scripts/resource-budget-test.js && node scripts/plugin-security-test.js && node scripts/p2-responsiveness-test.js && node scripts/p3-plugin-runtime-test.js && node scripts/p4-p5-p6-test.js && node scripts/release-readiness-test.js"
+    "test": "node scripts/smoke-test.js && node scripts/conversion-snapshot-test.js && node scripts/conversion-capability-audit-test.js && node scripts/format-integrity-test.js && node scripts/worker-payload-test.js && node scripts/browser-smoke-test.js && node scripts/workbench-queue-test.js && node scripts/desktop-shell-test.js && node scripts/local-security-test.js && node scripts/resource-budget-test.js && node scripts/plugin-security-test.js && node scripts/plugin-patch-release-test.js && node scripts/p2-responsiveness-test.js && node scripts/p3-plugin-runtime-test.js && node scripts/p4-p5-p6-test.js && node scripts/p7-release-productization-test.js && node scripts/release-readiness-test.js"
   },
   "keywords": [
     "converter",
