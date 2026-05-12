@@ -251,6 +251,18 @@ export function isModelReachable(from, to) {
   return registry.isModelReachable(from, to);
 }
 
+export function registerEngineBridge(bridge) {
+  registry.registerBridge(bridge);
+}
+
+export function unregisterEngineBridgesFromSource(source) {
+  registry.unregisterBridgesFromSource(source);
+}
+
+export function listEngineBridges() {
+  return registry.listBridges();
+}
+
 export function detectFormatFromName(fileName) {
   const ext = String(fileName || "").split(".").pop()?.toLowerCase() || "";
   return EXT_TO_FORMAT[ext] || "";
