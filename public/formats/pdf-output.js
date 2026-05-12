@@ -1,5 +1,6 @@
 import { bytesToDataUrl, textToBytes } from "../core/binary-utils.js";
 import { getPlainText } from "../core/document-model.js";
+import { writePdfHighFidelity } from "./pdf-output-high-fidelity.js";
 
 function escapePdfText(value) {
   return String(value ?? "").replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
@@ -83,7 +84,19 @@ function buildPdfBytes(model, title) {
   return textToBytes(output);
 }
 
+// PDF 输出双路：优先使用高保真路径（FixedLayoutModel），回落到程序化路径（SemanticDoc）
 export function writePdfBinary({ model, title = model.title }) {
+  // 如果模型包含 FixedLayoutModel，使用高保真输出
+  if (model.fixedLayout && model.fixedLayout.pages && model.fixedLayout.pages.length > 0) {
+    try {
+      return writePdfHighFidelity({ model, title });
+    } catch (error) {
+      // 高保真输出失败，回落到程序化输出
+      console.warn("[pdf-output] High-fidelity output failed, falling back to programmatic output:", error.message);
+    }
+  }
+
+  // 程序化输出（SemanticDoc → 重新排版）
   const bytes = buildPdfBytes(model, title);
   return {
     type: "binary",

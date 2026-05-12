@@ -704,6 +704,54 @@ test("P4 programmatic PDF output returns a real PDF data URL instead of print HT
   assert.equal(output.data.includes("@media print"), false);
 });
 
+test("P8-M4 high-fidelity PDF output preserves FixedLayoutModel coordinates", () => {
+  // 构造一个包含 FixedLayoutModel 的模型
+  const layoutPayload = {
+    engine: "pdfjs-layout",
+    pages: [
+      {
+        pageNumber: 1,
+        blocks: [
+          { type: "heading", level: 1, text: "高保真 PDF 标题" },
+          { type: "paragraph", text: "这是一段测试文本。" },
+        ],
+        layout: {
+          pageNumber: 1,
+          size: { width: 595, height: 842, unit: "pt" },
+          textRuns: [
+            { text: "高保真 PDF 标题", bbox: { x: 72, y: 760, w: 200, h: 24 }, fontName: "STSong", fontSize: 24, fontWeight: "bold" },
+            { text: "这是一段测试文本。", bbox: { x: 72, y: 720, w: 180, h: 12 }, fontName: "STSong", fontSize: 12, fontWeight: "regular" },
+          ],
+          annotations: [
+            { type: "link", bbox: { x: 72, y: 700, w: 100, h: 12 }, target: "https://example.com" },
+          ],
+        },
+      },
+    ],
+  };
+  const sentinelStart = "% Trans2Former PDFJS_TEXT_START";
+  const sentinelEnd = "% Trans2Former PDFJS_TEXT_END";
+  const encoded = `base64:${Buffer.from(JSON.stringify(layoutPayload), "utf8").toString("base64")}`;
+  const fakePdfWithLayout = `%PDF-1.7\n%%EOF\n${sentinelStart}\n${encoded}\n${sentinelEnd}\n`;
+
+  // 读取 PDF，应该产生 FixedLayoutModel
+  const model = toDocumentModel(fakePdfWithLayout, "pdf", "high-fidelity.pdf");
+  assert.equal(model.fixedLayout.pages.length, 1);
+  assert.equal(model.fixedLayout.pages[0].textRuns.length, 2);
+  assert.equal(model.fixedLayout.pages[0].textRuns[0].fontSize, 24);
+  assert.equal(model.fixedLayout.pages[0].annotations.length, 1);
+
+  // 转换为 PDF，应该使用高保真路径
+  const output = convertContent({ content: fakePdfWithLayout, from: "pdf", to: "pdf", title: "high-fidelity.pdf" });
+  assertValidOutput(output, "pdf", "pdf high-fidelity round-trip");
+  const bytes = dataUrlToBytes(output.data);
+  assert.equal(new TextDecoder().decode(bytes.slice(0, 5)), "%PDF-");
+
+  // 验证输出包含 "High-Fidelity" producer 标记
+  const pdfText = new TextDecoder().decode(bytes);
+  assert.match(pdfText, /Trans2Former High-Fidelity/);
+});
+
 test("placeholder image rendering outputs are not advertised as supported conversions", () => {
   assert.equal(getAllowedOutputFormats("md").includes("png"), false);
   assert.equal(getAllowedOutputFormats("md").includes("jpeg"), false);
