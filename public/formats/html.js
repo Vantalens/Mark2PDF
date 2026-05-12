@@ -8,6 +8,17 @@ import {
   createQuote,
   createTable,
 } from "../core/document-model.js";
+import {
+  createInlineCode,
+  createInlineDel,
+  createInlineEm,
+  createInlineLineBreak,
+  createInlineLink,
+  createInlineStrong,
+  createInlineText,
+  inlinesToMarkdown,
+  inlinesToPlainText,
+} from "../core/models/semantic-inlines.js";
 import { escapeHtml } from "./text-utils.js";
 import { modelToBodyHtml } from "./markdown.js";
 
@@ -85,30 +96,77 @@ function eventsToHtml(events) {
   }).join("");
 }
 
-function inlineToMarkdown(html) {
-  let text = String(html ?? "");
-  text = text.replace(/<\s*br\s*\/?\s*>/gi, "  \n");
-  text = text.replace(/<\s*img\b([^>]*)\/?\s*>/gi, (_, attrs) => {
-    const src = getAttr(attrs, "src");
-    const alt = getAttr(attrs, "alt");
-    const title = getAttr(attrs, "title");
-    if (!src) return "";
-    const titlePart = title ? ` "${title}"` : "";
-    return `![${alt}](${src}${titlePart})`;
-  });
-  text = text.replace(/<\s*a\b([^>]*)>([\s\S]*?)<\s*\/\s*a\s*>/gi, (_, attrs, inner) => {
-    const href = getAttr(attrs, "href");
-    const innerText = inlineToMarkdown(inner);
-    if (!href) return innerText;
-    return `[${innerText}](${href})`;
-  });
-  text = text.replace(/<\s*(strong|b)\b[^>]*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, (_, _tag, inner) => `**${inlineToMarkdown(inner)}**`);
-  text = text.replace(/<\s*(em|i)\b[^>]*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, (_, _tag, inner) => `*${inlineToMarkdown(inner)}*`);
-  text = text.replace(/<\s*code\b[^>]*>([\s\S]*?)<\s*\/\s*code\s*>/gi, (_, inner) => `\`${decodeHtmlEntities(inner).replace(/`/g, "\\`")}\``);
-  text = text.replace(/<\s*(del|s|strike)\b[^>]*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, (_, _tag, inner) => `~~${inlineToMarkdown(inner)}~~`);
-  text = text.replace(/<\s*\/?[a-zA-Z][^>]*>/g, "");
-  text = decodeHtmlEntities(text);
-  return text.replace(/[ \t]+\n/g, "\n").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+// 把 events 区间转换为 inline 节点数组。识别 strong/b、em/i、code、del/s/strike、
+// a、br；其它内联标签透传内部节点；遇到 block-level 容器（在调用方已经剥离）
+// 的 stray 节点会跳过。详见 docs/MULTI_MODEL_ARCHITECTURE.md。
+function eventsToInlines(events, start, end) {
+  const result = [];
+  let index = start;
+  while (index < end) {
+    const event = events[index];
+    if (!event) { index += 1; continue; }
+    if (event.type === "text") {
+      const text = decodeHtmlEntities(event.text);
+      if (text) result.push(createInlineText(text));
+      index += 1;
+      continue;
+    }
+    if (event.type === "void") {
+      if (event.tag === "br") {
+        result.push(createInlineLineBreak());
+      }
+      // <img> 在内联位置忽略；block 级图片由 readBlocksFromEvents 单独处理
+      index += 1;
+      continue;
+    }
+    if (event.type === "close") {
+      // stray close（嵌套不闭合）忽略
+      index += 1;
+      continue;
+    }
+    // open
+    const tag = event.tag;
+    const closeIndex = findClosingIndex(events, index + 1, tag);
+    const innerEnd = closeIndex === -1 ? end : Math.min(closeIndex, end);
+    if (tag === "strong" || tag === "b") {
+      result.push(createInlineStrong(eventsToInlines(events, index + 1, innerEnd)));
+    } else if (tag === "em" || tag === "i") {
+      result.push(createInlineEm(eventsToInlines(events, index + 1, innerEnd)));
+    } else if (tag === "code") {
+      const inner = events.slice(index + 1, innerEnd)
+        .filter((e) => e.type === "text")
+        .map((e) => decodeHtmlEntities(e.text))
+        .join("");
+      result.push(createInlineCode(inner));
+    } else if (tag === "del" || tag === "s" || tag === "strike") {
+      result.push(createInlineDel(eventsToInlines(events, index + 1, innerEnd)));
+    } else if (tag === "a") {
+      result.push(createInlineLink({
+        inlines: eventsToInlines(events, index + 1, innerEnd),
+        href: getAttr(event.attrs, "href"),
+        title: getAttr(event.attrs, "title"),
+      }));
+    } else {
+      // 其它内联标签（span / sub / sup / mark / ...）：透传内部节点
+      result.push(...eventsToInlines(events, index + 1, innerEnd));
+    }
+    index = (closeIndex === -1 ? end : closeIndex) + 1;
+  }
+  return result;
+}
+
+function trimInlines(inlines) {
+  if (!Array.isArray(inlines) || inlines.length === 0) return inlines || [];
+  // 头尾的纯 text 节点去掉首尾空白；中间的多余空白由 inlinesToPlainText 时再处理
+  const cleaned = inlines.map((node, idx) => {
+    if (node?.type !== "text") return node;
+    let value = node.value;
+    if (idx === 0) value = value.replace(/^\s+/, "");
+    if (idx === inlines.length - 1) value = value.replace(/\s+$/, "");
+    value = value.replace(/\s+/g, " ");
+    return { ...node, value };
+  }).filter((node) => !(node?.type === "text" && node.value === ""));
+  return cleaned;
 }
 
 function collectInline(events, start, stopTags) {
@@ -150,11 +208,26 @@ function findClosingIndex(events, start, tag) {
 }
 
 function sliceInline(events, start, closeIndex) {
-  return inlineToMarkdown(eventsToHtml(events.slice(start, closeIndex)));
+  return trimInlines(eventsToInlines(events, start, closeIndex));
+}
+
+function inlinesPlainTextTrimmed(inlines) {
+  return inlinesToPlainText(inlines).replace(/\s+/g, " ").trim();
+}
+
+function makeBlockWithInlines(factory, inlines, ...args) {
+  const plain = inlinesPlainTextTrimmed(inlines);
+  const block = factory(...args, plain);
+  if (Array.isArray(inlines) && inlines.length > 0) {
+    block.inlines = inlines;
+    block.text = plain;
+  }
+  return block;
 }
 
 function extractListItems(events, start, closeIndex) {
   const items = [];
+  const itemInlines = [];
   const meta = [];
   let depth = 0;
   let index = start;
@@ -173,9 +246,11 @@ function extractListItems(events, start, closeIndex) {
     if (event.type === "open" && event.tag === "li") {
       const liClose = findClosingIndex(events, index + 1, "li");
       const end = liClose === -1 ? closeIndex : liClose;
-      const text = sliceInline(events, index + 1, end);
-      if (text) {
-        items.push(text);
+      const inlines = sliceInline(events, index + 1, end);
+      const plain = inlinesPlainTextTrimmed(inlines);
+      if (plain) {
+        items.push(plain);
+        itemInlines.push(inlines);
         meta.push({ depth, marker: "-" });
       }
       index = end + 1;
@@ -183,7 +258,7 @@ function extractListItems(events, start, closeIndex) {
     }
     index += 1;
   }
-  return { items, meta };
+  return { items, itemInlines, meta };
 }
 
 function extractTableRows(events, start, closeIndex) {
@@ -202,7 +277,8 @@ function extractTableRows(events, start, closeIndex) {
         if (cellEvent.type === "open" && (cellEvent.tag === "td" || cellEvent.tag === "th")) {
           const cellClose = findClosingIndex(events, cursor + 1, cellEvent.tag);
           const cellEnd = cellClose === -1 ? end : cellClose;
-          cells.push(sliceInline(events, cursor + 1, cellEnd));
+          // 表格单元格暂时只输出 plain text；行内格式在 P8-M3 表格升级时再细化
+          cells.push(inlinesPlainTextTrimmed(sliceInline(events, cursor + 1, cellEnd)));
           cellTypes.push(cellEvent.tag);
           cursor = cellEnd + 1;
           continue;
@@ -221,19 +297,35 @@ function extractTableRows(events, start, closeIndex) {
 function readBlocksFromEvents(events) {
   const blocks = [];
   let index = 0;
-  let paragraphBuffer = [];
+  let paragraphBuffer = []; // 顶层"散文"区域：累积 events，flush 时再转 inlines
 
   function flushParagraph() {
-    const text = paragraphBuffer.join("").trim();
+    if (paragraphBuffer.length === 0) return;
+    const inlines = trimInlines(eventsToInlines(paragraphBuffer, 0, paragraphBuffer.length));
     paragraphBuffer = [];
-    if (text) blocks.push(createParagraph(text));
+    const plain = inlinesPlainTextTrimmed(inlines);
+    if (!plain) return;
+    const block = createParagraph(plain);
+    if (inlines.length > 0) block.inlines = inlines;
+    blocks.push(block);
+  }
+
+  function pushBlockFromInlines(factory, inlines, ...factoryArgs) {
+    const plain = inlinesPlainTextTrimmed(inlines);
+    if (!plain) return;
+    const block = factory(...factoryArgs, plain);
+    if (Array.isArray(inlines) && inlines.length > 0) {
+      block.inlines = inlines;
+      block.text = plain;
+    }
+    blocks.push(block);
   }
 
   while (index < events.length) {
     const event = events[index];
 
     if (event.type === "text") {
-      paragraphBuffer.push(event.text);
+      paragraphBuffer.push(event);
       index += 1;
       continue;
     }
@@ -268,19 +360,25 @@ function readBlocksFromEvents(events) {
       const end = closeIndex === -1 ? events.length : closeIndex;
 
       if (/^h[1-6]$/.test(tag)) {
-        const text = sliceInline(events, index + 1, end);
-        if (text) blocks.push(createHeading(Number(tag.slice(1)), text));
+        const inlines = sliceInline(events, index + 1, end);
+        pushBlockFromInlines((level, plain) => createHeading(level, plain), inlines, Number(tag.slice(1)));
       } else if (tag === "blockquote") {
-        const text = sliceInline(events, index + 1, end);
-        if (text) blocks.push(createQuote(text));
+        const inlines = sliceInline(events, index + 1, end);
+        pushBlockFromInlines((plain) => createQuote(plain), inlines);
       } else if (tag === "pre") {
         const inner = eventsToHtml(events.slice(index + 1, end));
         const codeMatch = inner.match(/<\s*code\b[^>]*>([\s\S]*?)<\s*\/\s*code\s*>/i);
         const raw = decodeHtmlEntities(codeMatch ? codeMatch[1] : inner.replace(/<\/?[^>]+>/g, ""));
         if (raw.trim()) blocks.push(createCodeBlock(raw.replace(/^\n+/, "").replace(/\n+$/, "")));
       } else if (tag === "ul" || tag === "ol") {
-        const { items, meta } = extractListItems(events, index + 1, end);
-        if (items.length > 0) blocks.push(createList(items, tag === "ol", meta));
+        const { items, itemInlines, meta } = extractListItems(events, index + 1, end);
+        if (items.length > 0) {
+          const list = createList(items, tag === "ol", meta);
+          if (itemInlines.some((entry) => entry.length > 0)) {
+            list.itemInlines = itemInlines;
+          }
+          blocks.push(list);
+        }
       } else if (tag === "table") {
         const allRows = extractTableRows(events, index + 1, end);
         if (allRows.length > 0) {
@@ -298,20 +396,20 @@ function readBlocksFromEvents(events) {
           blocks.push(createTable(headers, bodyRows.map((row) => row.cells)));
         }
       } else if (tag === "p") {
-        const text = sliceInline(events, index + 1, end);
-        if (text) blocks.push(createParagraph(text));
+        const inlines = sliceInline(events, index + 1, end);
+        pushBlockFromInlines((plain) => createParagraph(plain), inlines);
       } else if (tag === "li" || tag === "thead" || tag === "tbody" || tag === "tfoot" || tag === "tr" || tag === "th" || tag === "td" || tag === "figcaption") {
         // 应当被父级 block 处理；如果遇到孤立的，按段落降级
-        const text = sliceInline(events, index + 1, end);
-        if (text) blocks.push(createParagraph(text));
+        const inlines = sliceInline(events, index + 1, end);
+        pushBlockFromInlines((plain) => createParagraph(plain), inlines);
       } else {
         const inner = events.slice(index + 1, end);
         const innerBlocks = readBlocksFromEvents(inner);
         if (innerBlocks.length > 0) {
           blocks.push(...innerBlocks);
         } else {
-          const text = sliceInline(events, index + 1, end);
-          if (text) blocks.push(createParagraph(text));
+          const inlines = sliceInline(events, index + 1, end);
+          pushBlockFromInlines((plain) => createParagraph(plain), inlines);
         }
       }
 
@@ -319,10 +417,12 @@ function readBlocksFromEvents(events) {
       continue;
     }
 
-    // 顶层 inline：累积到段落缓冲
+    // 顶层 inline：累积到段落缓冲（保留 events 而非字符串，flush 时再产 inlines）
     const closeIndex = findClosingIndex(events, index + 1, tag);
     const end = closeIndex === -1 ? events.length : closeIndex;
-    paragraphBuffer.push(eventsToHtml(events.slice(index, end + 1)));
+    for (let i = index; i <= end && i < events.length; i += 1) {
+      paragraphBuffer.push(events[i]);
+    }
     index = end + 1;
   }
 
@@ -346,8 +446,13 @@ export function readHtml({ content, title = "document", format = "html" }) {
   const events = tokenizeHtml(body);
   const blocks = readBlocksFromEvents(events);
   if (blocks.length === 0) {
-    const fallback = inlineToMarkdown(body);
-    if (fallback) blocks.push(createParagraph(fallback));
+    const fallbackInlines = sliceInline(tokenizeHtml(body), 0, Number.POSITIVE_INFINITY);
+    const fallback = inlinesPlainTextTrimmed(fallbackInlines);
+    if (fallback) {
+      const block = createParagraph(fallback);
+      if (fallbackInlines.length > 0) block.inlines = fallbackInlines;
+      blocks.push(block);
+    }
   }
   return createDocumentModel({ title, sourceFormat: format, blocks });
 }

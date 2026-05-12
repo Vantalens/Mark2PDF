@@ -8,8 +8,23 @@ import {
   createQuote,
   createTable,
 } from "../core/document-model.js";
+import { inlinesToHtml, inlinesToMarkdown } from "../core/models/semantic-inlines.js";
 import { createWarning, withWarnings } from "../core/warnings.js";
 import { escapeHtml, normalizeNewlines } from "./text-utils.js";
+
+function blockTextToMarkdown(block) {
+  if (Array.isArray(block?.inlines) && block.inlines.length > 0) {
+    return inlinesToMarkdown(block.inlines);
+  }
+  return markdownInlineFromText(block?.text ?? "");
+}
+
+function blockTextToHtml(block) {
+  if (Array.isArray(block?.inlines) && block.inlines.length > 0) {
+    return inlinesToHtml(block.inlines);
+  }
+  return inlineMarkdownToHtml(block?.text ?? "");
+}
 
 function inlineMarkdownToHtml(text) {
   return escapeHtml(text)
@@ -208,19 +223,22 @@ export function writeMarkdown({ model, options = {} }) {
   const markdown = model.blocks
     .map((block) => {
       if (block.type === "heading") {
-        return `${"#".repeat(block.level)} ${markdownInlineFromText(block.text)}`;
+        return `${"#".repeat(block.level)} ${blockTextToMarkdown(block)}`;
       }
       if (block.type === "paragraph") {
-        return markdownInlineFromText(block.text);
+        return blockTextToMarkdown(block);
       }
       if (block.type === "quote") {
-        return `> ${markdownInlineFromText(block.text)}`;
+        return `> ${blockTextToMarkdown(block)}`;
       }
       if (block.type === "list") {
         return block.items.map((item, index) => {
           const depth = Math.max(0, Number(block.itemMeta?.[index]?.depth) || 0);
           const indent = "  ".repeat(depth);
           const marker = block.ordered && depth === 0 ? `${index + 1}.` : "-";
+          if (Array.isArray(block.itemInlines?.[index]) && block.itemInlines[index].length > 0) {
+            return `${indent}${marker} ${inlinesToMarkdown(block.itemInlines[index])}`;
+          }
           return `${indent}${marker} ${markdownInlineFromText(item)}`;
         }).join("\n");
       }
@@ -290,19 +308,22 @@ export function writeMarkdown({ model, options = {} }) {
 
 export function blockToHtml(block) {
   if (block.type === "heading") {
-    return `<h${block.level}>${inlineMarkdownToHtml(block.text)}</h${block.level}>`;
+    return `<h${block.level}>${blockTextToHtml(block)}</h${block.level}>`;
   }
   if (block.type === "paragraph") {
-    return `<p>${inlineMarkdownToHtml(block.text)}</p>`;
+    return `<p>${blockTextToHtml(block)}</p>`;
   }
   if (block.type === "quote") {
-    return `<blockquote>${inlineMarkdownToHtml(block.text)}</blockquote>`;
+    return `<blockquote>${blockTextToHtml(block)}</blockquote>`;
   }
   if (block.type === "list") {
     const tag = block.ordered ? "ol" : "ul";
     return `<${tag}>${block.items.map((item, index) => {
       const depth = Math.max(0, Number(block.itemMeta?.[index]?.depth) || 0);
-      return `<li data-depth="${depth}">${inlineMarkdownToHtml(item)}</li>`;
+      const inner = Array.isArray(block.itemInlines?.[index]) && block.itemInlines[index].length > 0
+        ? inlinesToHtml(block.itemInlines[index])
+        : inlineMarkdownToHtml(item);
+      return `<li data-depth="${depth}">${inner}</li>`;
     }).join("")}</${tag}>`;
   }
   if (block.type === "code") {

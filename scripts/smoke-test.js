@@ -791,6 +791,41 @@ test("ConversionError normalizes parse, validate, and convert failures", () => {
   assert.equal(normalized.code, "PREVIEW_RENDER_ERROR");
 });
 
+test("HTML reader emits structured inline nodes (P8-M2)", () => {
+  const html = `<!doctype html><html><body>
+    <h1>Title with <em>emphasis</em></h1>
+    <p>Hello <strong>bold</strong> and <a href="https://example.com">link</a> with <code>inlineCode</code>.</p>
+    <ul><li>Item with <strong>bold</strong></li></ul>
+  </body></html>`;
+  const model = toDocumentModel(html, "html", "inline.html");
+  assert.equal(validateDocumentModel(model).ok, true);
+
+  const heading = model.blocks.find((block) => block.type === "heading");
+  assert.equal(heading.text, "Title with emphasis");
+  assert.equal(Array.isArray(heading.inlines), true);
+  assert.equal(heading.inlines.some((node) => node.type === "em"), true);
+
+  const paragraph = model.blocks.find((block) => block.type === "paragraph");
+  assert.equal(paragraph.inlines.some((node) => node.type === "strong"), true);
+  assert.equal(paragraph.inlines.some((node) => node.type === "link" && node.href === "https://example.com"), true);
+  assert.equal(paragraph.inlines.some((node) => node.type === "code" && node.value === "inlineCode"), true);
+
+  const list = model.blocks.find((block) => block.type === "list");
+  assert.equal(Array.isArray(list.itemInlines), true);
+  assert.equal(list.itemInlines[0].some((node) => node.type === "strong"), true);
+
+  const md = convertContent({ content: html, from: "html", to: "md", title: "inline.html" }).data;
+  assert.match(md, /# Title with \*emphasis\*/);
+  assert.match(md, /\*\*bold\*\* and \[link\]\(https:\/\/example\.com\) with `inlineCode`/);
+  assert.match(md, /- Item with \*\*bold\*\*/);
+
+  const htmlOut = convertContent({ content: html, from: "html", to: "html", title: "inline.html" }).data;
+  assert.match(htmlOut, /<h1><em>?[^<]*<\/em>[^<]*<\/h1>|<h1>Title with <em>emphasis<\/em><\/h1>/);
+  assert.match(htmlOut, /<strong>bold<\/strong>/);
+  assert.match(htmlOut, /<a href="https:\/\/example\.com"[^>]*>link<\/a>/);
+  assert.match(htmlOut, /<code>inlineCode<\/code>/);
+});
+
 test("Markdown preview and core conversions preserve common document structure", () => {
   const markdown = "# Title\n\nHello **Trans2Former**.\n\n- One\n- Two\n\n```js\nconsole.log('ok');\n```";
   const preview = renderPreviewHtml(markdown, "md", "sample");
