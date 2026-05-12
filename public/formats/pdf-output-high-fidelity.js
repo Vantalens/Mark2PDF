@@ -54,6 +54,7 @@ function buildHighFidelityPdfBytes(fixedLayout, title) {
 
     // 构建内容流：按 textRun 的 bbox 精确定位
     const contentLines = ["BT"];
+    let lastX = null;
     let lastY = null;
 
     for (const run of page.textRuns || []) {
@@ -68,14 +69,15 @@ function buildHighFidelityPdfBytes(fixedLayout, title) {
 
       // 定位到 textRun 的坐标
       if (lastY === null || Math.abs(y - lastY) > 0.1) {
+        // 新行或 y 坐标变化，使用绝对定位
         contentLines.push(`${x.toFixed(2)} ${y.toFixed(2)} Td`);
+        lastX = x;
         lastY = y;
-      } else {
-        // 同一行，只移动 x
-        const dx = x - (run.bbox.x || 0);
-        if (Math.abs(dx) > 0.1) {
-          contentLines.push(`${dx.toFixed(2)} 0 Td`);
-        }
+      } else if (lastX !== null && Math.abs(x - lastX) > 0.1) {
+        // 同一行，x 坐标变化，使用相对定位
+        const dx = x - lastX;
+        contentLines.push(`${dx.toFixed(2)} 0 Td`);
+        lastX = x;
       }
 
       // 输出文本
