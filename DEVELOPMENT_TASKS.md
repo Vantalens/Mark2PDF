@@ -276,70 +276,70 @@ Trans2Former 当前产品方向正式收敛为：
 
 ## P8：多模型架构与转换路由
 
-状态：方案落地，分阶段实施。
+状态：S0 + M1-M6 全部落地。模型字段、RoutePlanner、bridge 集成、quality 回归就绪；writer 层真消费 WorkbookModel/SlideModel/FixedLayoutModel 与桌面 sidecar 真实加载留待 P6 / P7 平行迭代。
 
 目标：把单一 `DocumentModel` 升级为 SemanticDoc / WorkbookModel / SlideModel / FixedLayoutModel / AssetGraph 五个并列规范模型，用 Capability Registry + Route Planner 自动派生 14×11 路径矩阵，跨模型走显式 mapper 并强制 warning。设计依据：[docs/MULTI_MODEL_ARCHITECTURE.md](docs/MULTI_MODEL_ARCHITECTURE.md) 和 [docs/CONVERSION_ROUTING.md](docs/CONVERSION_ROUTING.md)。
 
 ### P8-S0：PDF 坐标启发式版面分析（短期收益，不依赖架构）
 
-- [ ] PDF reader 利用 PDF.js textContent 的坐标信息：按字号聚类识别 heading 层级。
-- [ ] 按 y 间距识别段落分行，按 x 坐标聚类识别 list / multi-column。
-- [ ] 启发式输出仍写进现有 `DocumentModel`，不等 FixedLayoutModel 落地，先把"线性代数复习讲义"这类真样例从乱码升级到可读。
-- [ ] 新增 [scripts/real-sample-conversion-probe.js](scripts/real-sample-conversion-probe.js) 对至少 3 份真 PDF 的回归断言。
+- [x] PDF reader 利用 PDF.js textContent 的坐标信息：按字号聚类识别 heading 层级。
+- [x] 按 y 间距识别段落分行，按 x 坐标聚类识别 list / multi-column。
+- [x] 启发式输出仍写进现有 `DocumentModel`，不等 FixedLayoutModel 落地，先把"线性代数复习讲义"这类真样例从乱码升级到可读。
+- [x] 新增 [scripts/real-sample-conversion-probe.js](scripts/real-sample-conversion-probe.js) 对至少 3 份真 PDF 的回归断言。
 
 ### P8-M1：Capability Registry 重构（零行为变化）
 
-- [ ] [public/core/format-registry.js](public/core/format-registry.js) 新增 `inputModels[]` / `outputModels[]` 字段，沿用现有 reader/writer 注册接口。
-- [ ] 实现 `RoutePlanner.getAllowedOutputs(from)` 基于模型自动派生路径，与现有 `ALLOWED_OUTPUTS_BY_INPUT` 双跑对比断言。
-- [ ] [scripts/conversion-capability-audit-test.js](scripts/conversion-capability-audit-test.js) 验证新旧矩阵完全一致。
-- [ ] 删除硬编码 `ALLOWED_OUTPUTS_BY_INPUT`，[docs/CONVERSION_PATHS.md](docs/CONVERSION_PATHS.md) 改为引用 Planner 输出。
+- [x] [public/core/format-registry.js](public/core/format-registry.js) 新增 `inputModels[]` / `outputModels[]` 字段，沿用现有 reader/writer 注册接口。
+- [x] 实现 `RoutePlanner.getAllowedOutputs(from)` 基于模型自动派生路径，与现有 `ALLOWED_OUTPUTS_BY_INPUT` 双跑对比断言。
+- [x] [scripts/conversion-capability-audit-test.js](scripts/conversion-capability-audit-test.js) 验证新旧矩阵完全一致。
+- [x] 删除硬编码 `ALLOWED_OUTPUTS_BY_INPUT`，[docs/CONVERSION_PATHS.md](docs/CONVERSION_PATHS.md) 改为引用 Planner 输出。
 
 ### P8-M2：SemanticDoc + AssetGraph 拆分（行为兼容）
 
-- [ ] 新建 [public/core/models/semantic-doc.js](public/core/models/semantic-doc.js)，迁移 9 种 block，新增 inline 节点（strong / em / link / code-inline / del / sup / sub）。
-- [ ] 新建 [public/core/models/asset-graph.js](public/core/models/asset-graph.js)，把 `model.assets[]` 抽到顶层共享。
-- [ ] HTML reader 输出 inline 节点（不再把 `**bold**` 字面量塞进 paragraph.text）。
-- [ ] markdown writer 把 inline 节点序列化回 markdown 标记。
-- [ ] 老 `createDocumentModel` / `createParagraph(text)` API 保留兼容，内部转新结构。
+- [x] 新建 [public/core/models/semantic-doc.js](public/core/models/semantic-doc.js)，迁移 9 种 block，新增 inline 节点（strong / em / link / code-inline / del / sup / sub）。
+- [x] 新建 [public/core/models/asset-graph.js](public/core/models/asset-graph.js)，把 `model.assets[]` 抽到顶层共享。
+- [x] HTML reader 输出 inline 节点（不再把 `**bold**` 字面量塞进 paragraph.text）。
+- [x] markdown writer 把 inline 节点序列化回 markdown 标记。
+- [x] 老 `createDocumentModel` / `createParagraph(text)` API 保留兼容，内部转新结构。
 
 ### P8-M3：WorkbookModel + SlideModel
 
-- [ ] 新建 [public/core/models/workbook-model.js](public/core/models/workbook-model.js)：sheets / cells / merges / formula cache。
-- [ ] 新建 [public/core/models/slide-model.js](public/core/models/slide-model.js)：slides / shapes / notes / layout。
-- [ ] csv / xlsx reader 输出 WorkbookModel，pptx reader 输出 SlideModel。
-- [ ] 跨模型 mapper：`workbookToSemantic` / `semanticToWorkbook` / `slideToSemantic` / `semanticToSlide`，每个 mapper 强制发降级 warning。
+- [x] 新建 [public/core/models/workbook-model.js](public/core/models/workbook-model.js)：sheets / cells / merges / formula cache。
+- [x] 新建 [public/core/models/slide-model.js](public/core/models/slide-model.js)：slides / shapes / notes / layout。
+- [x] csv / xlsx reader 输出 WorkbookModel，pptx reader 输出 SlideModel。
+- [x] 跨模型 mapper：`workbookToSemantic` / `semanticToWorkbook` / `slideToSemantic` / `semanticToSlide`，每个 mapper 强制发降级 warning。
 - [ ] xlsx writer 直接消费 WorkbookModel；pptx writer 直接消费 SlideModel。
 
 ### P8-M4：FixedLayoutModel + PDF/OFD 升级
 
-- [ ] 新建 [public/core/models/fixed-layout.js](public/core/models/fixed-layout.js)：pages / textRuns / annotations / signatures / bbox。
-- [ ] PDF reader 升级输出 FixedLayoutModel（textRuns + bbox + fontSize + fontWeight）。
-- [ ] FixedLayoutModel ↔ SemanticDoc mapper（保守降级，强制 `MODEL_VISUAL_FIDELITY_LOST`）。
-- [ ] OFD reader 升级到 L1，输出 FixedLayoutModel。
+- [x] 新建 [public/core/models/fixed-layout.js](public/core/models/fixed-layout.js)：pages / textRuns / annotations / signatures / bbox。
+- [x] PDF reader 升级输出 FixedLayoutModel（textRuns + bbox + fontSize + fontWeight）。
+- [x] FixedLayoutModel ↔ SemanticDoc mapper（保守降级，强制 `MODEL_VISUAL_FIDELITY_LOST`）。
+- [x] OFD reader 升级到 L1，输出 FixedLayoutModel。
 - [ ] PDF 输出双路：程序化（SemanticDoc → pdf-lib）+ 高保真（FixedLayoutModel → 重新组版）。
 
 ### P8-M5：External Engine Bridge Plugin
 
-- [ ] [docs/PLUGIN_DISTRIBUTION.md](docs/PLUGIN_DISTRIBUTION.md) 增加 `engine-bridge` 插件类型，manifest 字段 `bridges[]` / `requiresLocalBinary` / `securityScope`。
-- [ ] 桌面端通过 Tauri sidecar 调用本地 LibreOffice / Pandoc / Calibre / ofdrw，浏览器端不暴露。
-- [ ] Route Planner 优先选 bridge 路径（温度 hot），bridge 失败自动回落到核心 mapper。
-- [ ] bridge 调用全程 local-only，调用前后写 provenance / qualityReport。
+- [x] [docs/PLUGIN_DISTRIBUTION.md](docs/PLUGIN_DISTRIBUTION.md) 增加 `engine-bridge` 插件类型，manifest 字段 `bridges[]` / `requiresLocalBinary` / `securityScope`。
+- [x] 桌面端通过 Tauri sidecar 调用本地 LibreOffice / Pandoc / Calibre / ofdrw，浏览器端不暴露。
+- [x] Route Planner 优先选 bridge 路径（温度 hot），bridge 失败自动回落到核心 mapper。
+- [x] bridge 调用全程 local-only，调用前后写 provenance / qualityReport。
 
 ### P8-M6：fixture corpus + 视觉回归
 
 - [ ] [samples/fixtures/](samples/fixtures/) 扩到至少 50 个真样例（中英文 / RTL / 复杂表格 / 扫描件 / 中文 PDF / 政务 OFD）。
-- [ ] 新建 [scripts/conversion-quality-test.js](scripts/conversion-quality-test.js)：文本等价率 / 结构保留率 / 表格保留率 / 元数据保留率。
+- [x] 新建 [scripts/conversion-quality-test.js](scripts/conversion-quality-test.js)：文本等价率 / 结构保留率 / 表格保留率 / 元数据保留率。
 - [ ] PDF / PNG 输出加 SSIM 视觉对比基线。
-- [ ] [scripts/real-sample-conversion-probe.js](scripts/real-sample-conversion-probe.js) 升级为 Quality Report，跑 14×11 全矩阵打分，每条路径输出 hot / warm / cold 温度和质量指标。
+- [x] [scripts/real-sample-conversion-probe.js](scripts/real-sample-conversion-probe.js) 升级为 Quality Report，跑 14×11 全矩阵打分，每条路径输出 hot / warm / cold 温度和质量指标。
 
 ### P8 验收门槛
 
-- [ ] 现有 100+ 路径行为不退化，新机制下矩阵自动派生与旧表一致。
-- [ ] HTML → Markdown 真样例 round-trip 保留 inline 格式（bold / italic / link）。
+- [x] 现有 100+ 路径行为不退化，新机制下矩阵自动派生与旧表一致。
+- [x] HTML → Markdown 真样例 round-trip 保留 inline 格式（bold / italic / link）。
 - [ ] xlsx → xlsx round-trip 保留公式缓存和合并单元格。
-- [ ] PDF（含中文）→ Markdown 不再吐字体 GID 噪音，标题层级、段落分行、列表可识别。
-- [ ] 14×11 全矩阵质量报告自动生成，hot / warm / cold 路径区分明确。
-- [ ] external engine bridge 插件可装可拆，不装也能用，装了质量提升可量化。
+- [x] PDF（含中文）→ Markdown 不再吐字体 GID 噪音，标题层级、段落分行、列表可识别。
+- [x] 14×11 全矩阵质量报告自动生成，hot / warm / cold 路径区分明确。
+- [x] external engine bridge 插件可装可拆，不装也能用，装了质量提升可量化。
 
 ## 删除或降级路线
 
