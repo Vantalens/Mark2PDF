@@ -70,16 +70,19 @@ try {
   assert.equal(indexHtml.includes("id=\"pluginInstalledList\""), true, "P3 workbench should expose installed plugin lifecycle list");
   assert.equal(indexHtml.includes("id=\"pluginCapabilityList\""), true, "P3 workbench should expose plugin capability discovery");
   assert.equal(indexHtml.includes("id=\"pluginSecuritySummary\""), true, "P3 workbench should expose plugin mode isolation summary");
-  assert.equal(indexHtml.includes("class=\"utility-pane\""), true, "workbench should separate plugin and quality modules from the main conversion flow");
+  assert.equal(indexHtml.includes("class=\"bottom-drawer\""), true, "workbench should host quality and plugin modules in a collapsible bottom drawer");
   assert.equal(indexHtml.includes("<details id=\"fileQueuePanel\""), true, "modern workbench should keep file queue collapsed by default");
   assert.equal(indexHtml.includes("<details id=\"fileQueuePanel\" class=\"queue-panel\" aria-label=\"文件队列\" hidden>"), true, "primary UI should hide batch queue from the default user path");
-  assert.equal(indexHtml.includes("<details id=\"bottomReportPanel\""), true, "modern workbench should expose reports and plugin metadata");
-  assert.equal(indexHtml.includes("<details id=\"bottomReportPanel\" class=\"bottom-report-panel\" aria-label=\"报告面板\" open>"), true, "plugin module should be visible in the default workbench");
+  assert.equal(indexHtml.includes("<details id=\"bottomReportPanel\""), true, "modern workbench should expose reports and plugin metadata via the bottom drawer");
+  assert.equal(indexHtml.includes("<details id=\"bottomReportPanel\" class=\"bottom-drawer\""), true, "bottom drawer is the only host for plugin and quality reports");
+  assert.equal(/<details id="bottomReportPanel"[^>]*\sopen[\s>]/.test(indexHtml), false, "drawer should be collapsed by default to keep the primary flow uncluttered");
   assert.equal(indexHtml.includes("workspace-primary"), true, "modern workbench should expose a focused primary workflow");
   assert.equal(indexHtml.includes("class=\"auxiliary-actions\""), true, "modern workbench should group secondary actions away from the primary command path");
   assert.equal(indexHtml.includes("class=\"auxiliary-actions\" hidden"), false, "plugin and security actions should be reachable from the default workbench");
   assert.equal(indexHtml.includes("class=\"output-settings\""), true, "modern workbench should keep export settings behind disclosure");
   assert.equal(indexHtml.includes("class=\"viewer-grid single-view\""), true, "modern workbench should show one right-side work view at a time");
+  assert.equal(indexHtml.includes("class=\"topbar-progress\""), true, "progress should be embedded in the topbar instead of a separate row");
+  assert.equal(indexHtml.includes("data-drawer-tab=\"drawerPluginsGroup\""), true, "drawer should expose tabbed groups for plugins, quality, versions");
 
   const smokeHtml = await fetchText(baseUrl, "/smoke-test.html");
   assert.equal(smokeHtml.includes("Trans2Former Browser Smoke Test"), true);

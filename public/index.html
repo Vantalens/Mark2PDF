@@ -37,6 +37,20 @@
           </label>
         </div>
 
+        <section
+          id="conversionProgress"
+          class="topbar-progress"
+          data-state="idle"
+          aria-live="polite"
+        >
+          <span id="statusText" class="status-chip">就绪</span>
+          <div class="progress-track" aria-hidden="true">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+          <span id="progressPercent">0%</span>
+          <span id="progressStage" class="progress-stage" hidden>待命</span>
+        </section>
+
         <div class="topbar-actions">
           <button id="transformButton" class="primary-button" type="button">转换</button>
           <button id="cancelTransformButton" class="ghost-button" type="button" disabled hidden>取消</button>
@@ -51,13 +65,6 @@
           </details>
         </div>
       </header>
-
-      <section id="conversionProgress" class="progress-bar" data-state="idle" aria-live="polite">
-        <span id="progressStage">待命</span>
-        <span id="statusText" class="status-chip">就绪</span>
-        <div class="progress-track" aria-hidden="true"><div id="progressFill" class="progress-fill"></div></div>
-        <span id="progressPercent">0%</span>
-      </section>
 
       <main class="workspace workspace-primary">
         <section class="source-pane">
@@ -215,68 +222,80 @@
               <div id="textOutputPreview" class="preview-frame text-output-preview"></div>
             </article>
           </div>
-
         </section>
-
-        <aside class="utility-pane" aria-label="插件与质量信息">
-          <details id="bottomReportPanel" class="bottom-report-panel" aria-label="报告面板" open>
-            <summary>
-              <span>质量、版本与插件</span>
-              <small>Warnings / Quality / Diff / Versions / Plugins</small>
-            </summary>
-            <div class="report-grid">
-              <article id="warningsPanel" class="report-card">
-                <div class="report-card-header">
-                  <h2>Warnings</h2>
-                  <div class="report-card-actions">
-                    <button id="resolveWarningsButton" class="mini-button" type="button">标记已处理</button>
-                    <button id="clearResolvedWarningsButton" class="mini-button" type="button">清除标记</button>
-                  </div>
-                </div>
-                <div id="warningsList" class="report-list">无</div>
-              </article>
-              <article id="qualityReportPanel" class="report-card">
-                <h2>Quality Report</h2>
-                <div id="qualityReportList" class="report-list">等待转换</div>
-              </article>
-              <article id="diffPanel" class="report-card">
-                <h2>Diff</h2>
-                <div id="diffSummary" class="report-list">尚无版本差异</div>
-              </article>
-              <article id="versionsPanel" class="report-card">
-                <h2>Versions</h2>
-                <div id="versionsList" class="report-list">v0 等待初始转换</div>
-              </article>
-              <article id="pluginDownloadPanel" class="report-card">
-                <div class="report-card-header">
-                  <h2>Plugin Downloads</h2>
-                  <div class="report-card-actions">
-                    <button id="importPluginButton" class="mini-button" type="button">导入本地插件包</button>
-                    <input id="importPluginInput" type="file" accept="application/json,.json" hidden />
-                  </div>
-                </div>
-                <div id="pluginDownloadList" class="report-list plugin-list">GitHub Releases install mode</div>
-              </article>
-              <article id="pluginUpdatePanel" class="report-card">
-                <h2>Plugin Updates</h2>
-                <div id="pluginUpdateList" class="report-list plugin-list">权限变化、资源预算和回滚入口</div>
-              </article>
-              <article id="pluginInstalledPanel" class="report-card">
-                <h2>Installed Plugins</h2>
-                <div id="pluginInstalledList" class="report-list plugin-list">尚未导入本地插件包</div>
-              </article>
-              <article id="pluginCapabilityPanel" class="report-card">
-                <h2>Plugin Capabilities</h2>
-                <div id="pluginCapabilityList" class="report-list">尚无插件能力</div>
-              </article>
-              <article id="pluginSecurityPanel" class="report-card">
-                <h2>Plugin Security</h2>
-                <div id="pluginSecuritySummary" class="report-list">install mode / processing mode</div>
-              </article>
-            </div>
-          </details>
-        </aside>
       </main>
+
+      <details id="bottomReportPanel" class="bottom-drawer" aria-label="质量与插件抽屉">
+        <summary class="bottom-drawer-summary">
+          <span class="bottom-drawer-title">质量、版本与插件</span>
+          <small class="bottom-drawer-hint">Warnings · Quality · Diff · Versions · Plugins</small>
+          <span class="bottom-drawer-toggle" aria-hidden="true"></span>
+        </summary>
+        <div class="bottom-drawer-body">
+          <nav class="drawer-tabs" aria-label="抽屉视图">
+            <button class="drawer-tab is-active" type="button" data-drawer-tab="drawerQualityGroup">质量</button>
+            <button class="drawer-tab" type="button" data-drawer-tab="drawerPluginsGroup">插件</button>
+            <button class="drawer-tab" type="button" data-drawer-tab="drawerVersionsGroup">版本</button>
+          </nav>
+
+          <div id="drawerQualityGroup" class="drawer-group is-active">
+            <article id="warningsPanel" class="report-card">
+              <div class="report-card-header">
+                <h2>Warnings</h2>
+                <div class="report-card-actions">
+                  <button id="resolveWarningsButton" class="mini-button" type="button">标记已处理</button>
+                  <button id="clearResolvedWarningsButton" class="mini-button" type="button">清除标记</button>
+                </div>
+              </div>
+              <div id="warningsList" class="report-list">无</div>
+            </article>
+            <article id="qualityReportPanel" class="report-card">
+              <h2>Quality Report</h2>
+              <div id="qualityReportList" class="report-list">等待转换</div>
+            </article>
+          </div>
+
+          <div id="drawerVersionsGroup" class="drawer-group">
+            <article id="diffPanel" class="report-card">
+              <h2>Diff</h2>
+              <div id="diffSummary" class="report-list">尚无版本差异</div>
+            </article>
+            <article id="versionsPanel" class="report-card">
+              <h2>Versions</h2>
+              <div id="versionsList" class="report-list">v0 等待初始转换</div>
+            </article>
+          </div>
+
+          <div id="drawerPluginsGroup" class="drawer-group">
+            <article id="pluginDownloadPanel" class="report-card">
+              <div class="report-card-header">
+                <h2>Plugin Downloads</h2>
+                <div class="report-card-actions">
+                  <button id="importPluginButton" class="mini-button" type="button">导入本地插件包</button>
+                  <input id="importPluginInput" type="file" accept="application/json,.json" hidden />
+                </div>
+              </div>
+              <div id="pluginDownloadList" class="report-list plugin-list">GitHub Releases install mode</div>
+            </article>
+            <article id="pluginInstalledPanel" class="report-card">
+              <h2>Installed Plugins</h2>
+              <div id="pluginInstalledList" class="report-list plugin-list">尚未导入本地插件包</div>
+            </article>
+            <article id="pluginUpdatePanel" class="report-card">
+              <h2>Plugin Updates</h2>
+              <div id="pluginUpdateList" class="report-list plugin-list">权限变化、资源预算和回滚入口</div>
+            </article>
+            <article id="pluginCapabilityPanel" class="report-card">
+              <h2>Plugin Capabilities</h2>
+              <div id="pluginCapabilityList" class="report-list">尚无插件能力</div>
+            </article>
+            <article id="pluginSecurityPanel" class="report-card">
+              <h2>Plugin Security</h2>
+              <div id="pluginSecuritySummary" class="report-list">install mode / processing mode</div>
+            </article>
+          </div>
+        </div>
+      </details>
     </div>
 
     <script type="module" src="/app.js"></script>

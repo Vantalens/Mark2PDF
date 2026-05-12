@@ -1510,12 +1510,14 @@ outputDirectoryButton.addEventListener("click", () => {
   chooseOutputDirectory().catch((error) => setStatus(error.message, "error"));
 });
 pluginManagerButton.addEventListener("click", () => {
-  setStatus("插件管理入口已就绪，下载和更新面板位于底部", "info");
+  openDrawerOnTab("drawerPluginsGroup");
   document.getElementById("pluginDownloadPanel")?.scrollIntoView({ block: "nearest" });
+  setStatus("插件管理已展开，可下载、导入或回滚", "info");
 });
 securityCenterButton.addEventListener("click", () => {
-  setStatus("local-only · 插件 install mode 不读文档 · processing mode 禁联网", "success");
+  openDrawerOnTab("drawerPluginsGroup");
   document.getElementById("pluginSecurityPanel")?.scrollIntoView({ block: "nearest" });
+  setStatus("local-only · 插件 install mode 不读文档 · processing mode 禁联网", "success");
 });
 importPluginButton?.addEventListener("click", () => {
   importPluginInput?.click();
@@ -1530,7 +1532,29 @@ importPluginInput?.addEventListener("change", (event) => {
 });
 document.getElementById("bottomReportPanel")?.addEventListener("click", (event) => {
   pluginWorkbench.handlePanelClick(event);
+  const drawerTab = event.target.closest("[data-drawer-tab]");
+  if (drawerTab) {
+    activateDrawerTab(drawerTab.dataset.drawerTab);
+  }
 });
+
+function activateDrawerTab(targetId) {
+  const drawer = document.getElementById("bottomReportPanel");
+  if (!drawer) return;
+  drawer.querySelectorAll(".drawer-tab").forEach((tab) => {
+    tab.classList.toggle("is-active", tab.dataset.drawerTab === targetId);
+  });
+  drawer.querySelectorAll(".drawer-group").forEach((group) => {
+    group.classList.toggle("is-active", group.id === targetId);
+  });
+}
+
+function openDrawerOnTab(targetId) {
+  const drawer = document.getElementById("bottomReportPanel");
+  if (!drawer) return;
+  drawer.open = true;
+  activateDrawerTab(targetId);
+}
 workbenchTabs.addEventListener("click", (event) => {
   const button = event.target.closest("[data-tab-target]");
   if (button) {
