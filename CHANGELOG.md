@@ -4,7 +4,29 @@
 
 ## [Unreleased]
 
-### 新增
+### 新增 (2026-05-12)
+
+- **P8-M7 结构化 inline 节点**：DOCX/PDF/XLSX 格式支持结构化 inline 节点（strong/em/link/code/del），链接不再降级为 "文本 (URL)" 字符串。
+- **P8-M7 公式和合并单元格保留**：XLSX writer 保留公式表达式和缓存值，保留合并单元格范围，xlsx → xlsx round-trip 完整保留。
+- **P8-M4 高保真 PDF 输出**：新增 FixedLayoutModel → PDF 高保真路径，精确保留原始坐标、字体、尺寸和 annotations。
+- **PDF 输出双路智能路由**：优先使用高保真路径（FixedLayoutModel），回落到程序化路径（SemanticDoc），Producer 标记区分。
+- **跨模型 Mapper**：新增 `public/core/models/mappers.js`，实现 workbook/slide/fixedLayout ↔ semantic 双向转换。
+- **界面优化**：修复转换开始时标签页状态不正确的问题，转换中自动切换到预览标签页，完成后切换到结果标签页。
+
+### 修复 (2026-05-12)
+
+- 修复高保真 PDF 输出的坐标计算错误（dx 计算错误导致文本重叠）。
+- 修复转换开始时标签页不切换的问题（用户看到空白结果页面）。
+
+### 改进 (2026-05-12)
+
+- DOCX reader 识别 hyperlink、bold、italic、strike、code 属性，输出结构化 inline 节点。
+- PDF reader 基于 fontName 识别 bold/italic（Times-Bold、Helvetica-Oblique 等）。
+- XLSX writer 从 WorkbookModel.formulas 回写 `<f>expression</f><v>cachedValue</v>`。
+- XLSX writer 从 WorkbookModel.merges 回写 `<mergeCells>` 节点。
+- 移除生产环境的调试日志，保持代码简洁。
+
+### 新增 (2026-05-09 之前)
 
 - 新增本地 PDF.js 文本抽取引擎：PDF 上传阶段优先使用 optional `pdfjs-dist` / `/vendor/pdfjs/` 的 `getTextContent()`，失败时才回落到轻量核心解析器。
 - 新增文本输出编辑器、实时预览、undo / redo 和 checkpoint 基线，输出草稿可在工作台内直接编辑并回写下载链接。
