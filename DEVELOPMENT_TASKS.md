@@ -44,6 +44,7 @@ Trans2Former 当前产品方向正式收敛为：
 
 ## 最近验收修复
 
+- 2026-05-12：P8-M7 结构化 inline 节点 + 公式/合并单元格保留。DOCX reader 新增 extractInlinesFromParagraph 和 extractRunInlines，识别 hyperlink、bold/italic/del/code 属性，输出 strong/em/del/code/link inline 节点，链接不再降级为 "文本 (URL)" 字符串。PDF reader 新增 itemsToInlines，从 PDF.js textContent.items 提取 fontName 识别 bold/italic。XLSX writer 新增 extractCachedValue 单独提取公式缓存值，sheetXml 从 WorkbookModel.formulas 回写 `<f>expression</f><v>cachedValue</v>`，从 WorkbookModel.merges 回写 `<mergeCells>` 节点，xlsx → xlsx round-trip 保留公式表达式和合并单元格范围。新增 P9-C 和 P9-B 测试，所有 43 个测试组通过。新增 public/core/models/mappers.js 实现跨模型 mapper（workbookToSemantic / semanticToWorkbook / slideToSemantic / semanticToSlide / fixedLayoutToSemantic / semanticToFixedLayout）。
 - 2026-05-12：工作台 UI 重构为双栏主区 + 底部抽屉。原右侧 utility-pane（9 张 report-card 高低不平）整体并入底部 `<details>` 抽屉，内部三个 tab（质量 / 插件 / 版本）以 `auto-fill minmax(260px,1fr)` 控宽度。顶栏新增紧凑进度组件（status chip + 细条 + %），独立进度条行删除。插件 / 安全入口统一走顶栏"更多"菜单，点击自动展开抽屉、切到对应 tab、滚到目标卡片，避免顶栏与右栏双重冗余。浏览器 smoke 测试更新为新结构断言（`bottom-drawer` / `topbar-progress` / `drawer-tab`）。
 - 2026-05-12：修复 HTML / XML / 纯文本转换乱码。HTML reader 重写为 Node + 浏览器统一的轻量 tokenizer，识别 block（h1-6/p/blockquote/pre/ul/ol/table/img）和 inline（strong/em/a/code/img/br/del）标签，不再依赖 `DOMParser` 也不再用 `textContent` 吞掉内联格式。Markdown writer 把非 markdown 的 raw block 包成 fenced code、HTML writer 输出 pre/code，避免 XML/JSON → MD/HTML 输出空白或残缺。XML reader 不再额外塞残缺 summary paragraph。`getPlainText` 给列表加 -/1. 标记并保留缩进，TXT 输出不再丢失列表语义。新增 `scripts/real-sample-conversion-probe.js` 用真样例端到端回归，避免单测覆盖盲区。
 - 2026-05-12：PDF 抽取加固与审查问题修复。`extractPdfObjects` 一次扫描复用，`buildCMapsByObject` / `buildFontCMapLookup` 不再 N×M 重复扫描；`inflatePdfStream` 加单流 64MB / 总量 128MB 上限，边解边累计超限即 cancel，避免 zip-bomb；回落分支嵌入 PDF 数据 URL 加 4MB 上限避免 HTML 输出体积炸弹；PDFJS payload 哨兵中以 `base64:` 前缀包 JSON，避免抽出文本含哨兵字面量截断；`bytesToLatin1` 分块替代 spread 防大数组炸栈；`escapeHtmlAttribute` 复用 shared `escapeHtml`；`useSystemFonts:false` 避免 Tauri 下主线程卡 OS 字体枚举；`expandPdfContentForTextExtraction` 各分支返回类型统一为 string。`local-security-test` 的 `fetch` 白名单从子串黑名单改为正则白名单：要求 `releaseUrl.startsWith("/plugin-patches/")` 守卫 + `fetch(releaseUrl)` 调用 + 禁止外部 scheme + 禁止未守卫的模板字符串插值。
@@ -308,7 +309,7 @@ Trans2Former 当前产品方向正式收敛为：
 - [x] 新建 [public/core/models/slide-model.js](public/core/models/slide-model.js)：slides / shapes / notes / layout。
 - [x] csv / xlsx reader 输出 WorkbookModel，pptx reader 输出 SlideModel。
 - [x] 跨模型 mapper：`workbookToSemantic` / `semanticToWorkbook` / `slideToSemantic` / `semanticToSlide`，每个 mapper 强制发降级 warning。
-- [ ] xlsx writer 直接消费 WorkbookModel；pptx writer 直接消费 SlideModel。
+- [x] xlsx writer 直接消费 WorkbookModel；pptx writer 直接消费 SlideModel。
 
 ### P8-M4：FixedLayoutModel + PDF/OFD 升级
 
@@ -336,7 +337,7 @@ Trans2Former 当前产品方向正式收敛为：
 
 - [x] 现有 100+ 路径行为不退化，新机制下矩阵自动派生与旧表一致。
 - [x] HTML → Markdown 真样例 round-trip 保留 inline 格式（bold / italic / link）。
-- [ ] xlsx → xlsx round-trip 保留公式缓存和合并单元格。
+- [x] xlsx → xlsx round-trip 保留公式缓存和合并单元格。
 - [x] PDF（含中文）→ Markdown 不再吐字体 GID 噪音，标题层级、段落分行、列表可识别。
 - [x] 14×11 全矩阵质量报告自动生成，hot / warm / cold 路径区分明确。
 - [x] external engine bridge 插件可装可拆，不装也能用，装了质量提升可量化。
